@@ -16,7 +16,7 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:radial-gradient(ellipse at 50% 0,#332426 0,transparent 65%),var(--desk);color:var(--tx);font:20px/1.25 'VT323',monospace;padding:16px 12px 64px}
 main.window{max-width:880px;margin:0 auto;background:var(--face);border:1px solid var(--edge);box-shadow:0 12px 48px #0008}
-h1.title-bar{margin:0;background:linear-gradient(100deg,#612326,#342426);color:var(--tx);font-size:20px;font-weight:normal;padding:4px 10px;display:flex;justify-content:space-between}
+.title-bar{margin:0;background:linear-gradient(100deg,#612326,#342426);color:var(--tx);font-size:20px;font-weight:normal;padding:4px 10px;display:flex;justify-content:space-between}
 .body{padding:12px}
 h2{font-size:24px;font-weight:normal;color:var(--navy);margin:0 0 12px;padding-bottom:4px;border-bottom:2px solid var(--blood)}
 p.sub{color:var(--mu);margin:0 0 12px}
@@ -80,9 +80,13 @@ input[type=checkbox]{min-height:20px;accent-color:#b64e4e;width:20px;height:20px
 nav button,.btn,.seg button{min-height:40px}
 nav button[aria-selected=true],.seg button[aria-pressed=true],.grid button.on{border-bottom:2px solid #d47770}
 @media (hover:hover){nav button:hover,.btn:hover,.seg button:hover,.pk>button[data-n]:hover{background:#493538}}
-h1.title-bar{padding:10px 12px;gap:12px;align-items:center;border-bottom:1px solid #87504c}
-.title-bar span:first-child{letter-spacing:1px}
-.title-bar span:last-child{color:#dfc5be}
+.title-bar{padding:10px 12px;gap:12px;align-items:center;border-bottom:1px solid #87504c}
+.header-brand{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 16px;min-width:0}
+.title-bar h1{margin:0;font:inherit;letter-spacing:1px}
+.account-button{margin-left:auto;flex-shrink:0;min-height:44px;border:1px solid #b87971;background:#302428;color:var(--tx);padding:6px 12px;font:inherit;cursor:pointer;box-shadow:var(--raised)}
+.account-button[aria-pressed=true]{background:#633033;border-color:#edc4b5;box-shadow:var(--sunk)}
+@media(hover:hover){.account-button:hover{background:#493538}}
+.header-brand span{color:#dfc5be}
 .card,.slot,.stat,.pk,.row>*,.body,section{min-width:0}
 .slot,.stat,.build-notes{overflow-wrap:anywhere}
 .slots{grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
@@ -111,8 +115,9 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
   body{padding-top:8px;padding-left:max(6px,env(safe-area-inset-left,0px));padding-right:max(6px,env(safe-area-inset-right,0px))}
   .body{padding:10px}
   .card{padding:10px}
-  h1.title-bar{flex-wrap:wrap;font-size:19px;gap:2px 12px}
-  h1.title-bar span:last-child{font-size:17px}
+  .title-bar{flex-wrap:nowrap;font-size:19px;gap:8px}
+  .header-brand{flex-direction:column;align-items:flex-start;gap:2px}
+  .header-brand span{font-size:17px}
   nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;gap:6px}
   nav button{white-space:normal;min-height:44px;padding:6px;font-size:19px}
   nav button[aria-selected=true]{padding:6px}
@@ -147,7 +152,7 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 </head>
 <body>
 <main class="window">
-<h1 class="title-bar"><span>TS DBDToolkit</span><span>Dead by Daylight</span></h1>
+<header class="title-bar"><div class="header-brand"><h1>TS DBD Toolkit</h1><span>Dead by Daylight</span></div><button type="button" class="account-button" id="tab-account" aria-controls="t-account" aria-pressed="false" onclick="showTab('account')">Account</button></header>
 <div class="body">
 <p class="sub">For Dead by Daylight: loadout planner, random loadout generator, match logging with stats, generator calculator. </p>
 <nav role="tablist" id="tabs"></nav>
@@ -215,12 +220,12 @@ function initialTab(){
 function showTab(id){
   if(!TABS.some(([key])=>key===id))id="build";
   $("#tbl").textContent=TABS.find(t=>t[0]===id)[1];
-  TABS.forEach(([k])=>{$("#t-"+k).hidden=k!==id;$("#tab-"+k).setAttribute("aria-selected",k===id)});
+  TABS.forEach(([k])=>{$("#t-"+k).hidden=k!==id;$("#tab-"+k).setAttribute(k==="account"?"aria-pressed":"aria-selected",k===id)});
   store.set("fog.activeTab",id);
   // Preserve build links and verification tokens while remembering this view on refresh.
   try{const url=new URL(location.href);url.searchParams.set("tab",id);window.history.replaceState(null,"",url.href)}catch(e){}
 }
-$("#tabs").innerHTML=TABS.map(([k,n])=>`<button role="tab" id="tab-${k}" onclick="showTab('${k}')">${n}</button>`).join("");
+$("#tabs").innerHTML=TABS.filter(([k])=>k!=="account").map(([k,n])=>`<button role="tab" id="tab-${k}" onclick="showTab('${k}')">${n}</button>`).join("");
 
 function seg(cur,fn){return `<div class="seg">${["S","K"].map(r=>`<button aria-pressed="${r===cur}" onclick="${fn}('${r}')">${RN[r]}</button>`).join("")}</div>`}
 
