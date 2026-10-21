@@ -204,7 +204,20 @@ let matches=store.get("fog.matches",[]);
 
 /* ===== tabs ===== */
 const TABS=[["build","Build planner"],["rand","Random loadout"],["perks","Perks"],["account","Account"],["track","Match tracker"],["calc","Gen calculator"]];
-function showTab(id){$("#tbl").textContent=TABS.find(t=>t[0]===id)[1];TABS.forEach(([k])=>{$("#t-"+k).hidden=k!==id;$("#tab-"+k).setAttribute("aria-selected",k===id)})}
+function initialTab(){
+  try{const requested=new URL(location.href).searchParams.get("tab");if(TABS.some(([id])=>id===requested))return requested}catch(e){}
+  if(/^#b=[SK]:/.test(location.hash||""))return "build";
+  const saved=store.get("fog.activeTab","build");
+  return TABS.some(([id])=>id===saved)?saved:"build";
+}
+function showTab(id){
+  if(!TABS.some(([key])=>key===id))id="build";
+  $("#tbl").textContent=TABS.find(t=>t[0]===id)[1];
+  TABS.forEach(([k])=>{$("#t-"+k).hidden=k!==id;$("#tab-"+k).setAttribute("aria-selected",k===id)});
+  store.set("fog.activeTab",id);
+  // Preserve build links and verification tokens while remembering this view on refresh.
+  try{const url=new URL(location.href);url.searchParams.set("tab",id);window.history.replaceState(null,"",url.href)}catch(e){}
+}
 $("#tabs").innerHTML=TABS.map(([k,n])=>`<button role="tab" id="tab-${k}" onclick="showTab('${k}')">${n}</button>`).join("");
 
 function seg(cur,fn){return `<div class="seg">${["S","K"].map(r=>`<button aria-pressed="${r===cur}" onclick="${fn}('${r}')">${RN[r]}</button>`).join("")}</div>`}
@@ -248,7 +261,7 @@ function usePlannerInCalc(){
 /* ===== build planner ===== */
 function setRole(r){role=r;build=[];q="";drawBuild()}
 function toggle(n){const i=build.indexOf(n);if(i>=0)build.splice(i,1);else if(build.length<4)build.push(n);drawBuild()}
-function link(){let u=location.href.split("#")[0];return u+"#b="+role+":"+encodeURIComponent(build.join("|"))}
+function link(){const u=new URL(location.href);u.searchParams.set("tab","build");u.hash="b="+role+":"+encodeURIComponent(build.join("|"));return u.href}
 function share(){const u=link(),o=$("#lnk");o.hidden=false;o.value=u;o.select();try{navigator.clipboard.writeText(u)}catch(e){}}
 function drawBuild(){
   const cat=n=>(PERKS[role].find(p=>p[0]===n)||[])[1]||"";
@@ -390,7 +403,7 @@ document.addEventListener("scroll",e=>{if(e.target===tip)return;pin=null;hideTip
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){pin=null;hideTip()}});
 window.addEventListener("resize",()=>{pin=null;hideTip()});
 drawBuild();drawRand();drawTrack();drawCalc();drawLibrary();
-showTab(/#b=/.test(location.hash)?"build":"build");
+showTab(initialTab());
 </script>
 <script src="dbd-auth-config.js"></script>
 <script src="dbd-accounts.js"></script>

@@ -123,4 +123,19 @@ for(const query of ['deja vu','DEJA VU','Déjà Vu','De\u0301ja\u0300 Vu']){
  context.query=query;run('q=query;drawGrid()');assert(get('#grid').innerHTML.includes('data-n="Déjà Vu"'));
 }
 run('q="";drawGrid()');assert.equal((get('#grid').innerHTML.match(/data-n=/g)||[]).length,176);
+// Refresh restores the URL tab, then a saved tab; shared-build links open the planner.
+context.URL=URL;
+const tabStorage=new Map();context.localStorage={getItem:k=>tabStorage.get(k)||null,setItem:(k,v)=>tabStorage.set(k,v)};
+context.location.href='https://dbdtoolkit.xyz/dbd-toolset/dbd-toolkit.html#b=S:Bond';
+context.window.history={replaceState(_state,_title,url){context.location.href=url}};
+run('showTab("account")');
+assert.equal(new URL(context.location.href).searchParams.get('tab'),'account');
+assert.equal(new URL(context.location.href).hash,'#b=S:Bond');
+assert.equal(run('initialTab()'),'account');
+context.location.href='https://dbdtoolkit.xyz/dbd-toolset/dbd-toolkit.html';context.location.hash='';
+assert.equal(run('initialTab()'),'account');
+context.location.href+='?tab=invalid';run('store.set("fog.activeTab","invalid")');
+assert.equal(run('initialTab()'),'build');
+run('showTab("track")');
+assert.equal(new URL(run('link()')).searchParams.get('tab'),'build');
 console.log(`PASS: ${checks} numeric checks; 321-perk dataset integrity; startup; search; warnings; planner/calculator parity; conditional controls and live 10.2.0 UI.`);
