@@ -6,6 +6,7 @@ const context=vm.createContext({});
 const read=name=>fs.readFileSync(path.join(__dirname,name),'utf8');
 vm.runInContext(read('dbd-perks.js'),context);
 vm.runInContext(read('dbd-stats.js'),context);
+for(const name of ['dbd-items-data.js','dbd-items.js','dbd-observed.js'])vm.runInContext(read(name),context);
 let checks=0;
 function near(actual,expected){checks++;assert(Math.abs(actual-expected)<1e-9,`${actual} != ${expected}`)}
 function stats(names,role='S',scenario={}){

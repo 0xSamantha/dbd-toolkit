@@ -146,6 +146,14 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 .library-perk[open] summary::after{content:'−'}
 .library-perk p{line-height:1.4}
 #account-form{display:grid;gap:12px;max-width:460px}
+.slots>label{min-width:0}
+.observed-perks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:8px}
+.observed-perks>div{position:relative;padding:8px 42px 8px 8px;background:var(--panel);overflow-wrap:anywhere}
+.observed-perks .info{position:absolute;right:2px;top:2px;min-width:36px;min-height:36px}
+.saved-notes{white-space:pre-wrap;overflow-wrap:anywhere}
+.item-comparisons{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:8px;margin-top:12px}
+.item-comparisons>div{min-width:0}
+#t-items h3{font-weight:normal;color:var(--navy)}
 [hidden]{display:none!important}
 
 </style>
@@ -163,14 +171,19 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 <section id="t-account" hidden></section>
 <section id="t-track" hidden></section>
 <section id="t-calc" hidden></section>
+<section id="t-observed" hidden></section>
+<section id="t-items" hidden></section>
 
-<footer>Unofficial fan project made by @tradersamz. Not affiliated with or endorsed by Behaviour Interactive. Dead by Daylight and all related names belong to their owners. Perk data: patch 10.2.0, build 10.2.0-3840818 (extracted October 7, 2026), from <a href="https://dbd.source.gs/perks/">dbd.source.gs</a>.</footer>
+<footer>Unofficial fan project made by @tradersamz. Not affiliated with or endorsed by Behaviour Interactive. Dead by Daylight and all related names belong to their owners. Perk data: patch 10.2.0, build 10.2.0-3840818 (extracted October 7, 2026), from <a href="https://dbd.source.gs/perks/">dbd.source.gs</a>. Enjoying the toolkit? <a href="https://venmo.com/samchavoya" target="_blank" rel="noopener noreferrer">Leave a tip on Venmo</a>.</footer>
 </div>
 </main>
 <div id="tip" role="tooltip" tabindex="0" hidden></div>
 <div class="taskbar"><button class="start" onclick="showTab('build')">Start</button><div class="task" id="tbl">Build planner</div><div class="clock" id="clk"></div></div>
 <script src="dbd-perks.js"></script>
 <script src="dbd-stats.js"></script>
+<script src="dbd-items-data.js"></script>
+<script src="dbd-items.js"></script>
+<script src="dbd-observed.js"></script>
 <script>
 /* ===== DATA (loaded from dbd-perks.js) ===== */
 const PERKS={S:[],K:[]};
@@ -210,7 +223,7 @@ try{const m=(location.hash||"").match(/#b=([SK]):(.*)/);if(m){role=m[1];build=de
 let matches=store.get("fog.matches",[]);
 
 /* ===== tabs ===== */
-const TABS=[["build","Build planner"],["rand","Random loadout"],["perks","Perks"],["account","Account"],["track","Match tracker"],["calc","Gen calculator"]];
+const TABS=[["build","Build planner"],["rand","Random loadout"],["perks","Perks"],["account","Account"],["track","Match tracker"],["observed","Observed builds"],["items","Items & add-ons"],["calc","Gen calculator"]];
 function initialTab(){
   try{const requested=new URL(location.href).searchParams.get("tab");if(TABS.some(([id])=>id===requested))return requested}catch(e){}
   if(/^#b=[SK]:/.test(location.hash||""))return "build";
@@ -222,6 +235,8 @@ function showTab(id){
   $("#tbl").textContent=TABS.find(t=>t[0]===id)[1];
   TABS.forEach(([k])=>{$("#t-"+k).hidden=k!==id;$("#tab-"+k).setAttribute(k==="account"?"aria-pressed":"aria-selected",k===id)});
   store.set("fog.activeTab",id);
+  if(id==="items")drawItems();
+  if(id==="observed")drawObserved();
   // Preserve build links and verification tokens while remembering this view on refresh.
   try{const url=new URL(location.href);url.searchParams.set("tab",id);window.history.replaceState(null,"",url.href)}catch(e){}
 }
@@ -409,7 +424,8 @@ document.addEventListener("click",e=>{const b=inf(e);if(b){pin=pin===b?null:b;pi
 document.addEventListener("scroll",e=>{if(e.target===tip)return;pin=null;hideTip()},true);
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){pin=null;hideTip()}});
 window.addEventListener("resize",()=>{pin=null;hideTip()});
-drawBuild();drawRand();drawTrack();drawCalc();drawLibrary();
+observedBuilds=store.get("fog.observedBuilds",[]);
+drawBuild();drawRand();drawTrack();drawCalc();drawLibrary();drawObserved();drawItems();
 showTab(initialTab());
 </script>
 <script src="dbd-auth-config.js"></script>

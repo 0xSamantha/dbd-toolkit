@@ -107,7 +107,7 @@ function calculateBuildStats(names,r,state){
   const personalRate=efficiency*actionFactor(raw.repair);
   const teamRate=personalRate+(state.repairers-1)*efficiency*actionFactor(raw.teamRepair);
   const charges=90-totals.genCharges;
-  return {totals,breakdown,applied,unsupported,personalRate,charges,genSeconds:charges/teamRate,
+  return {raw,totals,breakdown,applied,unsupported,personalRate,charges,genSeconds:charges/teamRate,
     movement:(r==='S'?4:state.killerBase)+4*totals.haste/100,
     vaultFactor:1/actionFactor(raw.vault),healSeconds:16/actionFactor(raw.heal),
     breakFactor:1/actionFactor(raw.break),pickupFactor:1/actionFactor(raw.pickup),

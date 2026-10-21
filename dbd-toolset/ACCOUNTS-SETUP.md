@@ -23,3 +23,9 @@ Before inviting users, test with two accounts:
 The SQL and live email flow must be tested in your project; no project credentials are included here.
 
 References: [password authentication](https://supabase.com/docs/guides/auth/passwords), [email templates](https://supabase.com/docs/guides/auth/auth-email-templates), [custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security).
+
+## Existing accounts: enable Observed Builds
+
+If you already ran the original setup, run **`supabase-observed-builds.sql`** once in your project's SQL Editor. It adds a separate `observed_builds` table with the same verified-email and per-user ownership protections. It does not modify or erase your `matches` records. New installations can run the updated `supabase-schema.sql`, which includes both tables.
+
+Guest observed builds use a separate browser backup (`fog.observedBuilds`). They are not uploaded automatically. In the Observed Builds tab, use **Copy guest build log into my account** after signing in to migrate your own entries. Each person's notes remain private to their account, even though they describe someone else's loadout. Test with two users before enabling the new cloud table for visitors.

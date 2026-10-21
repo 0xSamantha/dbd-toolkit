@@ -3,6 +3,7 @@
  */
 const FogAccounts=(()=>{
   let client=null,user=null,loading=false,busy=false,epoch=0,message='';
+  let observedReady=false,observedError='';
   const config=window.FOG_AUTH_CONFIG||{};
   const configured=!!(config.url&&config.publishableKey&&config.redirectUrl);
   const notice=text=>{message=text;drawAccount()};
@@ -30,14 +31,54 @@ const FogAccounts=(()=>{
     }
     if(token===epoch){matches=all;loading=false;drawTrack();drawAccount();}
   }
-  async function changeSession(session){
-    const token=++epoch;user=null;matches=[];loading=true;drawTrack();drawAccount();
+  function refreshObserved(){if(typeof drawObserved==='function')drawObserved()}
+  function observedMode(){
+    if(loading)return 'Account data is loading…';
+    if(user&&!observedReady)return observedError||'Your private build log is loading…';
+    return user?'Private observed builds saved to your account.':'Guest mode: observed builds are stored separately in this browser.';
+  }
+  async function loadObserved(token,owner){
     try{
-      if(!session){matches=store.get('fog.matches',[]);loading=false;drawTrack();drawAccount();return;}
+      const all=[];
+      for(let offset=0;;offset+=500){
+        const {data,error}=await client.from('observed_builds').select('data').eq('user_id',owner).order('id',{ascending:false}).range(offset,offset+499);
+        if(error)throw error;
+        all.push(...data.map(row=>validateObserved(row.data)));if(data.length<500)break;
+      }
+      if(token===epoch){observedBuilds=all;observedReady=true;observedError='';refreshObserved()}
+    }catch(error){if(token===epoch){observedReady=false;observedError='Cloud build log unavailable: '+error.message+'. The new observed-builds database setup may still be needed.';refreshObserved()}}
+  }
+  function requireObserved(){requireReady();if(user&&!observedReady)throw Error(observedError||'Please wait for your cloud build log.');}
+  async function saveObserved(record){
+    requireObserved();const rec=validateObserved(record),token=epoch,owner=user?.id;
+    if(owner){const {error}=await client.from('observed_builds').upsert({user_id:owner,id:rec.id,data:rec},{onConflict:'user_id,id'});if(error)throw error;}
+    if(token!==epoch)throw Error('Your account changed before the build could be displayed.');
+    observedBuilds=[rec,...observedBuilds.filter(b=>b.id!==rec.id)];
+    if(!owner)store.set('fog.observedBuilds',observedBuilds);
+  }
+  async function deleteObserved(id){
+    requireObserved();const token=epoch,owner=user?.id;
+    if(owner){const {error}=await client.from('observed_builds').delete().eq('user_id',owner).eq('id',id);if(error)throw error;}
+    if(token!==epoch)return;
+    observedBuilds=observedBuilds.filter(b=>b.id!==id);if(!owner)store.set('fog.observedBuilds',observedBuilds);
+  }
+  async function importObserved(records){
+    requireObserved();if(!Array.isArray(records)||records.length>5000)throw Error('Import up to 5,000 observed builds.');
+    const clean=[...new Map(records.map(validateObserved).map(b=>[b.id,b])).values()],owner=user?.id,token=epoch;
+    if(owner){
+      if(clean.length){const {error}=await client.from('observed_builds').upsert(clean.map(data=>({user_id:owner,id:data.id,data})),{onConflict:'user_id,id'});if(error)throw error;}
+      await loadObserved(token,owner);
+    }else{observedBuilds=[...new Map([...observedBuilds,...clean].map(b=>[b.id,b])).values()];store.set('fog.observedBuilds',observedBuilds);}
+  }
+  async function copyGuestObserved(){if(!user)throw Error('Sign in first to copy your guest build log.');await importObserved(store.get('fog.observedBuilds',[]));}
+  async function changeSession(session){
+    const token=++epoch;user=null;matches=[];observedBuilds=[];observedEditing=null;observedReady=false;observedError='';loading=true;drawTrack();drawAccount();refreshObserved();
+    try{
+      if(!session){matches=store.get('fog.matches',[]);observedBuilds=store.get('fog.observedBuilds',[]);loading=false;drawTrack();drawAccount();refreshObserved();return;}
       const {data,error}=await client.auth.getUser();if(error)throw error;
       if(token!==epoch)return;
       if(!data.user?.email_confirmed_at)throw Error('Please verify your email using the link in your inbox, then sign in.');
-      user=data.user;await loadMatches(token,user.id);
+      user=data.user;await loadMatches(token,user.id);if(token===epoch)await loadObserved(token,user.id);
     }catch(error){if(token===epoch){user=null;matches=[];loading=true;notice('Could not load your account: '+error.message+' Sign out to return to guest mode.');drawTrack();}}
   }
   async function saveMatch(record){
@@ -112,6 +153,6 @@ const FogAccounts=(()=>{
       drawAccount();
     }catch(error){notice(error.message);}
   }
-  return {init,drawAccount,modeNote,saveMatch,deleteMatch,importMatches,validateMatch};
+  return {init,drawAccount,modeNote,saveMatch,deleteMatch,importMatches,validateMatch,observedMode,saveObserved,deleteObserved,importObserved,copyGuestObserved};
 })();
 FogAccounts.init();
