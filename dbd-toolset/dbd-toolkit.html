@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fog Toolkit – Dead by Daylight tools</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+:root{--desk:#101113;--face:#252628;--navy:#e3aaa4;--tx:#eee9e2;--mu:#bdb6ae;--ok:#a9c69c;--bad:#ef9690;--panel:#191a1c;--edge:#494344;--blood:#842e31;color-scheme:dark;
+--raised:inset -1px -1px #101011,inset 1px 1px #5b5352;
+--sunk:inset 0 1px 3px #080809;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 50% 0,#332426 0,transparent 65%),var(--desk);color:var(--tx);font:20px/1.25 'VT323',monospace;padding:16px 12px 64px}
+main.window{max-width:880px;margin:0 auto;background:var(--face);border:1px solid var(--edge);box-shadow:0 12px 48px #0008}
+h1.title-bar{margin:0;background:linear-gradient(100deg,#612326,#342426);color:var(--tx);font-size:20px;font-weight:normal;padding:4px 10px;display:flex;justify-content:space-between}
+.body{padding:12px}
+h2{font-size:24px;font-weight:normal;color:var(--navy);margin:0 0 12px;padding-bottom:4px;border-bottom:2px solid var(--blood)}
+p.sub{color:var(--mu);margin:0 0 12px}
+nav{display:flex;gap:4px;overflow-x:auto;margin-bottom:12px;padding-bottom:4px}
+nav button,.btn,.seg button,.grid button{border:0;border-radius:0;background:#373336;box-shadow:var(--raised);color:var(--tx);font:inherit;cursor:pointer;padding:3px 12px;min-height:26px}
+nav button{white-space:nowrap}
+nav button[aria-selected=true],.seg button[aria-pressed=true],.grid button.on,.btn:active,.slot button:active{box-shadow:var(--sunk);background:#633033;font-weight:bold;padding:4px 11px 2px 13px}
+.btn{font-weight:bold}
+.btn.ghost{font-weight:normal}
+.seg{display:inline-flex;gap:4px;margin-bottom:12px}
+:focus-visible{outline:2px solid #edc4b5;outline-offset:2px}
+.card{background:var(--face);border:1px solid var(--edge);padding:12px;margin-bottom:12px}
+.slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.slot{background:var(--panel);border:1px solid var(--edge);box-shadow:var(--sunk);padding:8px;min-height:64px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;color:var(--mu)}
+.slot.full{color:var(--tx);position:relative;padding-top:30px}
+.slot.full .info{position:absolute;top:5px;right:6px;width:22px;height:22px;padding:0;font:bold italic 16px Georgia,serif}
+.effect-toggle{flex-direction:row;align-items:center;gap:8px;margin:6px 0}
+#build-stats{margin-top:12px}
+#build-stats .stats{margin-top:12px}
+.perk-icon{display:block;width:48px;height:48px;object-fit:contain;background:#362344;flex-shrink:0}
+.slot .perk-icon{width:64px;height:64px}
+.pk>button[data-n]{gap:4px}
+.perk-icon.failed{visibility:hidden}
+.build-notes{background:#302826;border:1px solid var(--edge);padding:10px;margin-bottom:12px}
+.build-notes p{margin:6px 0}
+.build-notes .warning{color:#f1b08f}
+.slot small,.tag{color:var(--mu);font-size:16px}
+.slot button{align-self:flex-start;background:#373336;box-shadow:var(--raised);border:0;color:var(--tx);font:inherit;cursor:pointer;padding:0 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;max-height:300px;overflow-y:auto;margin-top:10px;background:var(--panel);box-shadow:var(--sunk);padding:6px}
+.grid button{text-align:left;display:flex;flex-direction:column}
+.pk{position:relative;display:flex}
+.pk>button[data-n]{flex:1;padding-right:30px}
+.grid .pk .info{position:absolute;right:4px;top:4px;width:20px;min-height:0;height:20px;padding:0;text-align:center;font:bold 16px/18px Georgia,serif;font-style:italic}
+#tip{position:fixed;z-index:60;max-width:260px;background:#302826;color:var(--tx);border:1px solid #9d7166;padding:4px 8px;font-size:18px;box-shadow:2px 2px 0 rgba(0,0,0,.4);pointer-events:none}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:10px}
+label{display:flex;flex-direction:column;gap:4px}
+input,select,textarea{background:var(--panel);border:1px solid var(--edge);box-shadow:var(--sunk);border-radius:0;padding:3px 6px;font:inherit;color:var(--tx)}
+input:focus,select:focus,textarea:focus{border-color:var(--navy)}
+textarea{width:100%;min-height:80px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px}
+.stat{background:var(--panel);box-shadow:var(--sunk);padding:8px}
+.stat b{display:block;font-size:30px;font-weight:normal;color:var(--navy)}
+.tablewrap{overflow-x:auto;background:var(--panel);box-shadow:var(--sunk)}
+table{border-collapse:collapse;width:100%}
+td,th{text-align:left;padding:4px 8px;border-bottom:1px solid var(--edge)}
+th{background:var(--face);font-weight:normal;border-bottom:2px solid var(--edge)}
+.win{color:var(--ok);font-weight:bold}.loss{color:var(--bad);font-weight:bold}
+.big{font-size:30px;margin:0 0 8px;color:var(--navy)}
+summary{cursor:pointer}
+footer{margin:8px 0 0;padding:4px 8px;font-size:16px;color:var(--mu);box-shadow:var(--sunk)}
+.taskbar{position:fixed;left:0;right:0;bottom:0;height:40px;background:var(--face);border-top:1px solid var(--edge);display:flex;align-items:center;gap:6px;padding:5px calc(6px + env(safe-area-inset-right,0px)) calc(5px + env(safe-area-inset-bottom,0px)) calc(6px + env(safe-area-inset-left,0px));height:calc(40px + env(safe-area-inset-bottom,0px))}
+.taskbar .start{font-weight:bold;border:1px solid var(--edge);background:var(--face);font:inherit;font-weight:bold;cursor:pointer;padding:0 10px;min-height:28px}
+.taskbar .task{flex:1 1 auto;max-width:200px;min-height:28px;border:1px solid var(--edge);background:#633033;font-weight:bold;padding:2px 8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.taskbar .clock{margin-left:auto;border:1px solid var(--edge);padding:2px 8px;min-width:85px;text-align:center}
+/* Keep the original VT323 type and compact panels, with touch-friendly controls. */
+a{color:#edb9a8}
+button,input,select,textarea{touch-action:manipulation}
+button:disabled{opacity:.45;cursor:default}
+input::placeholder,textarea::placeholder{color:#a59e99;opacity:1}
+input[type=checkbox]{min-height:20px;accent-color:#b64e4e;width:20px;height:20px;flex:0 0 20px}
+nav button,.btn,.seg button{min-height:40px}
+nav button[aria-selected=true],.seg button[aria-pressed=true],.grid button.on{border-bottom:2px solid #d47770}
+@media (hover:hover){nav button:hover,.btn:hover,.seg button:hover,.pk>button[data-n]:hover{background:#493538}}
+h1.title-bar{padding:10px 12px;gap:12px;align-items:center;border-bottom:1px solid #87504c}
+.title-bar span:first-child{letter-spacing:1px}
+.title-bar span:last-child{color:#dfc5be}
+.card,.slot,.stat,.pk,.row>*,.body,section{min-width:0}
+.slot,.stat,.build-notes{overflow-wrap:anywhere}
+.slots{grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
+.stats{grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr))}
+.row>label{flex:1 1 170px;max-width:100%}
+input,select,textarea{max-width:100%;min-width:0;min-height:40px}
+label{max-width:100%}
+.effect-toggle{align-items:flex-start;line-height:1.3}
+.effect-toggle input{min-height:20px;margin:3px 0}
+.slot.full{padding-top:48px}
+.slot button{min-height:36px}
+.slot.full .info,.grid .pk .info{width:44px;height:44px;min-height:44px;display:grid;place-items:center;top:2px;right:2px;font-size:18px;line-height:1;padding:0}
+.pk>button[data-n]{padding:10px 48px 10px 10px;min-width:0;overflow-wrap:anywhere}
+.pk>button[data-n].on{padding:10px 48px 10px 10px}
+.grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr));max-height:420px;max-height:min(50dvh,420px);scrollbar-color:#8d5c58 var(--panel)}
+#tip{width:max-content;max-width:min(340px,calc(100vw - 24px));max-height:55vh;max-height:55dvh;overflow-y:auto;overscroll-behavior:contain;pointer-events:auto;line-height:1.35;padding:12px;box-shadow:0 6px 24px #0009}
+summary{padding:6px 0;min-height:40px}
+small{color:var(--mu)}
+.stat b{font-size:28px}
+.taskbar{z-index:50;gap:8px;height:calc(52px + env(safe-area-inset-bottom,0px));padding-top:6px}
+.taskbar .start{min-height:38px}
+.taskbar .task{min-width:0;background:var(--panel)}
+.taskbar .clock{min-width:76px;white-space:nowrap}
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+@media(max-width:600px){
+  body{padding-top:8px;padding-left:max(6px,env(safe-area-inset-left,0px));padding-right:max(6px,env(safe-area-inset-right,0px))}
+  .body{padding:10px}
+  .card{padding:10px}
+  h1.title-bar{flex-wrap:wrap;font-size:19px;gap:2px 12px}
+  h1.title-bar span:last-child{font-size:17px}
+  nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;gap:6px}
+  nav button{white-space:normal;min-height:44px;padding:6px;font-size:19px}
+  nav button[aria-selected=true]{padding:6px}
+  .slots,.stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .grid button{font-size:18px}
+  .pk>button[data-n],.pk>button[data-n].on{padding:50px 8px 8px;gap:6px}
+  .slot .perk-icon{width:56px;height:56px}
+  .slot button,.btn,.seg button{min-height:44px}
+  .row{gap:8px;align-items:stretch}
+  .row>.btn{flex:1 1 140px}
+  input,select,textarea{min-height:44px}
+  .tag,.slot small{font-size:16px}
+  .taskbar .task{max-width:150px;font-size:18px}
+  .stat{padding:8px}
+  .stat b{font-size:26px}
+  .tablewrap{max-width:100%}
+  td,th{min-width:85px;overflow-wrap:anywhere}
+}
+@media(max-width:350px){.body,.card{padding:8px}.taskbar .clock{font-size:17px;min-width:65px;padding:2px 4px}}
+.perk-library{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:10px;margin-top:12px}
+.library-perk{border:1px solid var(--edge);background:var(--panel);padding:10px;min-width:0;overflow-wrap:anywhere;align-self:start}
+.library-perk summary{display:flex;align-items:center;gap:10px;cursor:pointer;min-height:64px}
+.library-perk summary small{display:block;font-size:16px}
+.library-perk summary::after{content:'+';margin-left:auto;color:var(--navy)}
+.library-perk[open] summary::after{content:'−'}
+.library-perk p{line-height:1.4}
+#account-form{display:grid;gap:12px;max-width:460px}
+[hidden]{display:none!important}
+
+</style>
+</head>
+<body>
+<main class="window">
+<h1 class="title-bar"><span>Fog Toolkit</span><span>Dead by Daylight</span></h1>
+<div class="body">
+<p class="sub">Plan builds, roll random loadouts, log matches and time generators. Works for every platform, Xbox included.</p>
+<nav role="tablist" id="tabs"></nav>
+
+<section id="t-build"></section>
+<section id="t-rand" hidden></section>
+<section id="t-perks" hidden></section>
+<section id="t-account" hidden></section>
+<section id="t-track" hidden></section>
+<section id="t-calc" hidden></section>
+
+<footer>Unofficial fan project. Not affiliated with or endorsed by Behaviour Interactive. Dead by Daylight and all related names belong to their owners. Perk data: patch 10.2.0, build 10.2.0-3840818 (extracted October 7, 2026), from <a href="https://dbd.source.gs/perks/">dbd.source.gs</a>. Includes 321 perks and 44 killers. Calculator rules cover the effects listed in its stats panel.</footer>
+</div>
+</main>
+<div id="tip" role="tooltip" tabindex="0" hidden></div>
+<div class="taskbar"><button class="start" onclick="showTab('build')">Start</button><div class="task" id="tbl">Build planner</div><div class="clock" id="clk"></div></div>
+<script src="dbd-perks.js"></script>
+<script src="dbd-stats.js"></script>
+<script>
+/* ===== DATA (loaded from dbd-perks.js) ===== */
+const PERKS={S:[],K:[]};
+const DESC=Object.create(null);
+const ICONS=Object.create(null);
+DBD_PERK_DATA.perks.forEach(perk=>{
+  const role=perk.role==="survivor"?"S":perk.role==="killer"?"K":null;
+  if(!role)return;
+  PERKS[role].push([perk.name,perk.tags.join(", ")]);
+  DESC[perk.name]=perk.desc;
+  ICONS[perk.name]=perk.icon;
+});
+Object.values(PERKS).forEach(list=>list.sort((a,b)=>a[0].localeCompare(b[0])));
+const KILLERS=DBD_PERK_DATA.killers;
+const CHALLENGES={S:["No healing perks","Only green or lower items","Hatch is not allowed","Do every gen skill check on purpose","Never crouch","Unhook someone first, no matter what"],K:["No gen-regression perks","Only brown or yellow add-ons","Down everyone before hooking anyone","Never use your power in the first chase","Tunnel nobody","Hook each survivor exactly once before the third hook"]};
+/* Match record (the manual form and a future screenshot reader both produce this):
+{id, date, role:"S"|"K", character, result:"Escaped"|"Died" (S) or kills 0-4 (K), perks:[names], notes} */
+
+/* ===== helpers ===== */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function perkInfo(name){
+  return DESC[name]?`<button class="info" aria-describedby="tip" aria-label="About ${esc(name)}" data-d="${esc(DESC[name])}">i</button>`:"";
+}
+function perkIcon(name){
+  const src=ICONS[name];
+  return src?`<img class="perk-icon" src="${esc(src)}" alt="" width="48" height="48" loading="lazy" decoding="async" onerror="this.classList.add('failed')">`:"";
+}
+// Match plain typing against accented names without changing their display text.
+const searchText=t=>String(t).normalize("NFD").replace(/\p{M}/gu,"").toLowerCase();
+const RN={S:"Survivor",K:"Killer"};
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* ===== state ===== */
+let role="S",build=[],q="";
+try{const m=(location.hash||"").match(/#b=([SK]):(.*)/);if(m){role=m[1];build=decodeURIComponent(m[2]).split("|").filter(n=>PERKS[role].some(p=>p[0]===n)).slice(0,4)}}catch(e){}
+let matches=store.get("fog.matches",[]);
+
+/* ===== tabs ===== */
+const TABS=[["build","Build planner"],["rand","Random loadout"],["perks","Perks"],["account","Account"],["track","Match tracker"],["calc","Gen calculator"]];
+function showTab(id){$("#tbl").textContent=TABS.find(t=>t[0]===id)[1];TABS.forEach(([k])=>{$("#t-"+k).hidden=k!==id;$("#tab-"+k).setAttribute("aria-selected",k===id)})}
+$("#tabs").innerHTML=TABS.map(([k,n])=>`<button role="tab" id="tab-${k}" onclick="showTab('${k}')">${n}</button>`).join("");
+
+function seg(cur,fn){return `<div class="seg">${["S","K"].map(r=>`<button aria-pressed="${r===cur}" onclick="${fn}('${r}')">${RN[r]}</button>`).join("")}</div>`}
+
+/* Advisory rules use the supplied dataset version, not a live patch feed. */
+function buildNotes(names,r){
+  const notes=[],has=n=>names.includes(n);
+  const add=(kind,text)=>notes.push({kind,text});
+  if(r==="S"){
+    const exhausted=names.filter(n=>BUILD_EFFECTS[n]?.exhaustion||["Dead Hard","Head On","Overcome"].includes(n));
+    if(exhausted.length>1)add("warning",`${exhausted.join(" + ")}: shared Exhaustion cooldown. Activating one prevents the others from activating while Exhausted. These can be intentional alternatives, but cannot be chained normally.${has("Blood Rush")?" Blood Rush can clear Exhaustion after an unhook, subject to its conditions.":""}`);
+    const blocked=names.filter(n=>["Self-Care","Inner Strength","Inner Healing","Solidarity","For the People","Dramaturgy","Overcome"].includes(n));
+    for(const source of ["No Mither","Invocation: Weaving Spiders"]){
+      if(has(source)&&blocked.length)add("warning",`${source} + ${blocked.join(", ")}: ${source==="No Mither"?"permanent Broken":"after completing the Invocation, permanent Broken"} prevents healing to Healthy. Self-healing cannot restore you to Healthy; perks requiring Healthy or becoming injured cannot activate in that state. Solidarity can still heal others, but its self-healing is lost.`);
+    }
+    if(has("No Mither")&&has("Adrenaline"))add("warning","No Mither + Adrenaline: Broken prevents the heal to Healthy; Adrenaline's speed burst still works.");
+    if(has("Prove Thyself"))add("info","Prove Thyself: multiple teammates' copies do not stack on the same survivor. This is a team duplication limit, not a conflict with every other repair-speed perk. It provides no repair bonus when alone.");
+    if(has("Leader"))add("info","Leader does not increase generator repair speed in this dataset; its action-speed bonus applies to other listed actions.");
+  }
+  const overlapping=[];
+  for(const key of ['repair','heal','vault','haste','miss','hit']){
+    const matching=names.filter(n=>{const v=BUILD_EFFECTS[n]?.effects[key];return Array.isArray(v)?v.some(x=>x>0):v>0});
+    if(matching.length>1)overlapping.push(key);
+  }
+  if(overlapping.length)add("info",`Patch 10.2.0 Diminishing Returns may affect ${overlapping.join(', ')} when these effects are active together. The stats panel ranks each source and shows its reduced contribution.`);
+  return notes;
+}
+function buildNotesHTML(names,r){
+  if(!names.length)return "";
+  const notes=buildNotes(names,r);
+  return `<div class="build-notes" role="status" aria-live="polite"><b>Build interaction check</b>${notes.length?notes.map(n=>`<p class="${n.kind}">${n.kind==="warning"?"Warning: ":"Note: "}${esc(n.text)}</p>`).join(""):"<p>No known interactions flagged by the current rules.</p>"}<small>Checks use dataset ${esc(DBD_PERK_DATA.version)} and cover selected interactions only.</small></div>`;
+}
+function usePlannerInCalc(){
+  calc.on={};
+  if(role==="S")build.forEach(n=>{if(REPAIR[n]||n==="No Mither")calc.on[n]=true});
+  calc.n=buildScenario.repairers;calc.tier=buildScenario.tier;calc.highlighted=buildScenario.highlighted;
+  calc.health=buildScenario.health;calc.hexTotem=buildScenario.hexTotem;calc.active={...buildScenario.active};calc.extra=0;
+  drawCalc();showTab("calc");
+}
+
+/* ===== build planner ===== */
+function setRole(r){role=r;build=[];q="";drawBuild()}
+function toggle(n){const i=build.indexOf(n);if(i>=0)build.splice(i,1);else if(build.length<4)build.push(n);drawBuild()}
+function link(){let u=location.href.split("#")[0];return u+"#b="+role+":"+encodeURIComponent(build.join("|"))}
+function share(){const u=link(),o=$("#lnk");o.hidden=false;o.value=u;o.select();try{navigator.clipboard.writeText(u)}catch(e){}}
+function drawBuild(){
+  const cat=n=>(PERKS[role].find(p=>p[0]===n)||[])[1]||"";
+  $("#t-build").innerHTML=`<div class="card"><h2>Build planner</h2>${seg(role,"setRole")}
+  <div class="slots">${[0,1,2,3].map(i=>build[i]?`<div class="slot full">${perkInfo(build[i])}${perkIcon(build[i])}<div>${esc(build[i])}<br><small>${cat(build[i])}</small></div><button onclick="toggle('${build[i].replace(/'/g,"\\'")}')">Remove</button></div>`:`<div class="slot"><small>Empty slot ${i+1}</small></div>`).join("")}</div>
+  ${buildNotesHTML(build,role)}
+  <div class="row">${role==="S"?`<button class="btn" onclick="usePlannerInCalc()">Check generator time</button>`:""}<button class="btn" onclick="share()">Copy share link</button><button class="btn ghost" onclick="build=[];drawBuild()">Clear</button></div>
+  <input id="lnk" readonly hidden style="width:100%;margin-bottom:10px" aria-label="Share link">
+  <input id="q" type="search" placeholder="Search perks or a tag like generator, aura-reading, hook" value="${esc(q)}" style="width:100%" oninput="q=this.value;drawGrid()">
+  <div class="grid" id="grid"></div><div id="build-stats"></div></div>`;
+  drawGrid();drawBuildStats();
+}
+function drawGrid(){
+  const query=searchText(q);
+  const l=PERKS[role].filter(p=>searchText(p[0]+" "+p[1]).includes(query));
+  $("#grid").innerHTML=l.length?l.map(p=>`<div class="pk"><button class="${build.includes(p[0])?"on":""}" data-n="${esc(p[0])}">${perkIcon(p[0])}<span>${esc(p[0])}</span><span class="tag">${esc(p[1])}</span></button>${DESC[p[0]]?`<button class="info" aria-describedby="tip" aria-label="About ${esc(p[0])}" data-d="${esc(DESC[p[0]])}">i</button>`:""}</div>`).join(""):"<p class='sub'>No perks match that search.</p>";
+  $("#grid").onclick=e=>{const b=e.target.closest("button[data-n]");if(b)toggle(b.dataset.n)};
+}
+
+/* ===== standalone perk library ===== */
+let libraryRole="S",libraryQuery="";
+function setLibraryRole(r){libraryRole=r;drawLibrary()}
+function drawLibrary(){
+  $("#t-perks").innerHTML=`<div class="card"><h2>Perk library</h2>${seg(libraryRole,"setLibraryRole")}<p class="sub">Browse all ${PERKS[libraryRole].length} ${RN[libraryRole].toLowerCase()} perks. Open a description to read the full details.</p><label>Search perks<input type="search" value="${esc(libraryQuery)}" placeholder="Search by name, character, tag or description" oninput="libraryQuery=this.value;drawLibraryResults()"></label><div id="library-results" class="perk-library"></div></div>`;
+  drawLibraryResults();
+}
+function drawLibraryResults(){
+  const query=searchText(libraryQuery);
+  const perks=DBD_PERK_DATA.perks.filter(p=>p.role===(libraryRole==="S"?"survivor":"killer")&&searchText([p.name,p.meta.owner,p.tags.join(" "),p.desc].join(" ")).includes(query)).sort((a,b)=>a.name.localeCompare(b.name));
+  $("#library-results").innerHTML=perks.length?perks.map(p=>`<details class="library-perk"><summary>${perkIcon(p.name)}<span>${esc(p.name)}<small>${esc(p.meta.owner)}</small></span></summary><p>${esc(p.desc)}</p><p class="tag">${esc(p.tags.join(", "))}</p></details>`).join(""):"<p>No perks match your search.</p>";
+}
+
+/* ===== random loadout ===== */
+let rr="K",roll=null;
+function setRR(r){rr=r;doRoll()}
+function pick(a,n){const c=[...a],o=[];while(o.length<n&&c.length)o.push(c.splice(Math.floor(Math.random()*c.length),1)[0]);return o}
+function doRoll(){roll={r:rr,ch:rr==="K"?pick(KILLERS,1)[0]:null,perks:pick(PERKS[rr],4).map(p=>p[0]),mod:$("#mod")&&$("#mod").checked?pick(CHALLENGES[rr],1)[0]:(roll&&roll.mod&&!$("#mod")?roll.mod:null)};drawRand()}
+function toBuilder(){role=roll.r;build=[...roll.perks];q="";drawBuild();showTab("build")}
+function drawRand(){
+  const wantMod=$("#mod")?$("#mod").checked:true;
+  if(roll&&wantMod&&!roll.mod)roll.mod=pick(CHALLENGES[rr],1)[0];
+  $("#t-rand").innerHTML=`<div class="card"><h2>Random loadout</h2>${seg(rr,"setRR")}
+  <div class="row"><label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="mod" ${wantMod?"checked":""} onchange="doRoll()">Add a challenge</label><button class="btn" onclick="doRoll()">Roll again</button></div>
+  ${roll?`${roll.ch?`<p class="big">${esc(roll.ch)}</p>`:""}<div class="slots">${roll.perks.map(p=>`<div class="slot full">${perkInfo(p)}${perkIcon(p)}<span>${esc(p)}</span></div>`).join("")}</div>${buildNotesHTML(roll.perks,roll.r)}${wantMod&&roll.mod?`<p><b>Challenge:</b> ${esc(roll.mod)}</p>`:""}<button class="btn ghost" onclick="toBuilder()">Open in build planner</button>`:"<p class='sub'>Press Roll again to get your first loadout.</p>"}</div>`;
+}
+
+/* ===== match tracker ===== */
+let tr="S";
+function setTR(r){tr=r;drawTrack()}
+async function save(){
+  const rec={id:Date.now(),date:$("#fd").value||new Date().toISOString().slice(0,10),role:tr,character:($("#fc").value||"").trim()||"Unknown",
+    result:tr==="S"?$("#fr").value:Number($("#fr").value),perks:$("#fp").checked?[...build]:[],notes:$("#fn").value.trim()};
+  if(tr==="S"&&build.length&&role!=="S")rec.perks=[];
+  if(tr==="K"&&role!=="K")rec.perks=[];
+  try{await FogAccounts.saveMatch(rec);drawTrack()}catch(error){alert("Match was not saved: "+error.message)}
+}
+async function del(id){try{await FogAccounts.deleteMatch(id);drawTrack()}catch(error){alert("Could not delete match: "+error.message)}}
+async function imp(){try{await FogAccounts.importMatches(JSON.parse($("#io").value));drawTrack()}catch(error){alert("Could not import matches: "+error.message)}}
+function exp(){$("#io").value=JSON.stringify(matches,null,1);$("#io").select()}
+function drawTrack(){
+  const S=matches.filter(m=>m.role==="S"),K=matches.filter(m=>m.role==="K");
+  const esc_=S.filter(m=>m.result==="Escaped").length,avgK=K.length?(K.reduce((a,m)=>a+Number(m.result),0)/K.length).toFixed(1):"–";
+  const by={};matches.forEach(m=>{const k=m.role+m.character;(by[k]=by[k]||{r:m.role,c:m.character,n:0,v:0});by[k].n++;by[k].v+=m.role==="S"?(m.result==="Escaped"?1:0):Number(m.result)});
+  const rows=Object.values(by).sort((a,b)=>b.n-a.n).map(x=>`<tr><td>${esc(x.c)}</td><td>${RN[x.r]}</td><td>${x.n}</td><td>${x.r==="S"?Math.round(x.v/x.n*100)+"% escaped":(x.v/x.n).toFixed(1)+" kills avg"}</td></tr>`).join("");
+  const perkUse={};matches.forEach(m=>(m.perks||[]).forEach(p=>{perkUse[p]=(perkUse[p]||0)+1}));
+  const topP=Object.entries(perkUse).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([p,n])=>`${esc(p)} (${n})`).join(", ")||"–";
+  $("#t-track").innerHTML=`<div class="card"><h2>Log a match</h2><p class="sub">${esc(typeof FogAccounts!=="undefined"?FogAccounts.modeNote():"Guest mode: matches are saved only in this browser.")}</p>${seg(tr,"setTR")}
+  <div class="row"><label>Date<input type="date" id="fd" value="${new Date().toISOString().slice(0,10)}"></label>
+  <label>${tr==="K"?"Killer":"Survivor"}${tr==="K"?`<select id="fc">${KILLERS.map(k=>`<option>${k}</option>`).join("")}</select>`:`<input id="fc" placeholder="e.g. Meg" maxlength="30">`}</label>
+  <label>${tr==="S"?"Result":"Kills"}${tr==="S"?`<select id="fr"><option>Escaped</option><option>Died</option></select>`:`<select id="fr">${[0,1,2,3,4].map(n=>`<option>${n}</option>`).join("")}</select>`}</label></div>
+  <label style="flex-direction:row;align-items:center;gap:8px;margin-bottom:10px"><input type="checkbox" id="fp" ${build.length&&role===tr?"checked":""} ${build.length&&role===tr?"":"disabled"}>Attach my planner build (${build.length&&role===tr?esc(build.join(", ")):"none set for this role"})</label>
+  <label>Notes<textarea id="fn" maxlength="300" placeholder="Map, what went wrong, what worked"></textarea></label>
+  <p><button class="btn" onclick="save()">Save match</button></p></div>
+  <div class="card"><h2>Your stats</h2><div class="stats">
+  <div class="stat"><b>${matches.length}</b>Matches</div>
+  <div class="stat"><b>${S.length?Math.round(esc_/S.length*100)+"%":"–"}</b>Survivor escape rate</div>
+  <div class="stat"><b>${avgK}</b>Killer avg kills</div></div>
+  <p class="sub">Most-used perks: ${topP}</p>
+  ${rows?`<div class="tablewrap"><table><tr><th>Character</th><th>Role</th><th>Games</th><th>Result</th></tr>${rows}</table></div>`:"<p class='sub'>No matches yet. Log your first one above and your stats will appear here.</p>"}</div>
+  <div class="card"><h2>History</h2>${matches.length?`<div class="tablewrap"><table>${matches.slice(0,30).map(m=>`<tr><td>${esc(m.date)}</td><td>${esc(m.character)}</td><td class="${m.role==="S"?(m.result==="Escaped"?"win":"loss"):""}">${m.role==="S"?esc(m.result):m.result+" kills"}</td><td>${esc(m.notes||"")}</td><td><button class="btn ghost" onclick="del(${m.id})" aria-label="Delete match">Delete</button></td></tr>`).join("")}</table></div>`:"<p class='sub'>Nothing logged yet.</p>"}</div>
+  <details class="card"><summary>Export or import (backup or move to another device)</summary><p class="sub">Export the currently displayed history as a backup. Import adds records by match ID to your current guest log or signed-in account; it keeps other records.</p><textarea id="io" aria-label="Match data JSON"></textarea><div class="row"><button class="btn ghost" onclick="exp()">Export</button><button class="btn ghost" onclick="imp()">Import</button></div></details>`;
+}
+
+/* Generator calculator shares the planner's patch 10.2.0 rules and stacking. */
+const REPAIR=Object.fromEntries(Object.entries(BUILD_EFFECTS).filter(([,rule])=>rule.effects.repair!==undefined||rule.effects.genCharges!==undefined));
+let calc={n:2,tier:2,on:{},extra:0,highlighted:0,health:'healthy',active:{},hexTotem:false};
+function generatorEstimate(highlighted=calc.highlighted){
+  const names=Object.keys(calc.on).filter(n=>calc.on[n]);
+  return calculateBuildStats(names,'S',{...buildScenario,repairers:calc.n,tier:calc.tier,health:calc.health,
+    active:calc.active,hexTotem:calc.hexTotem,highlighted,extraRepair:calc.extra});
+}
+function calcOut(){
+  const result=generatorEstimate(),regular=generatorEstimate(0),red=generatorEstimate(1);
+  const base=90/([1,.85,.7,.55][calc.n-1]*calc.n);
+  $('#co').textContent=`${result.genSeconds.toFixed(1)} seconds per gen`;
+  $('#cd').innerHTML=`Without modeled perks: ${base.toFixed(1)} s. Your contribution: ${result.personalRate.toFixed(3)} charges/s. ${result.charges} charges remaining.<br>Applied: ${esc(result.applied.join(', ')||'no modeled perk bonuses active')}.${calc.on['Déjà Vu']?`<br>Déjà Vu comparison: regular gen ${regular.genSeconds.toFixed(1)} s; red revealed gen ${red.genSeconds.toFixed(1)} s. Bonus applies to you only.`:''}`;
+}
+function drawCalc(){
+  const modeled=role==='S'?build.filter(n=>REPAIR[n]):[];
+  const unmodeled=role==='S'?build.filter(n=>!REPAIR[n]):[];
+  const select=(key,value,options)=>`<select data-calc="${key}">${options.map(([v,label])=>`<option value="${v}" ${String(value)===String(v)?'selected':''}>${label}</option>`).join('')}</select>`;
+  $('#t-calc').innerHTML=`<div class="card"><h2>Generator time — patch 10.2.0</h2>
+  <p class="sub">Uses the same perk rules and Diminishing Returns as the build planner. Each teammate has only the team bonuses selected here; their own perks, skill checks, items and killer regression are excluded.</p>
+  <div class="row"><label>Survivors repairing${select('n',calc.n,[[1,'1'],[2,'2'],[3,'3'],[4,'4']])}</label>
+  <label>Perk tier${select('tier',calc.tier,[[0,'I'],[1,'II'],[2,'III']])}</label>
+  <label>Your health${select('health',calc.health,[['healthy','Healthy'],['injured','Injured'],['deep','Injured + Deep Wound']])}</label>
+  <label>One extra repair-speed source (%)<input data-calc="extra" type="number" min="0" max="300" value="${calc.extra}"></label></div>
+  <label>Generator being repaired${select('highlighted',calc.highlighted,[[0,'Regular generator'],[1,'Red generator revealed by Déjà Vu']])}</label>
+  <div class="slots">${Object.entries(REPAIR).map(([name,rule])=>`<div class="slot"><label class="effect-toggle"><input type="checkbox" data-calc-perk="${esc(name)}" ${calc.on[name]?'checked':''}>${esc(name)}</label>${rule.when&&!['injured','highlighted','coop'].includes(rule.when)?`<label class="effect-toggle"><input type="checkbox" data-calc-active="${esc(name)}" ${calc.active[name]?'checked':''}>${esc(rule.when)}</label>`:`<small>${rule.when==='injured'?'Active while injured':rule.when==='highlighted'?'Active only on red revealed generators':rule.when==='coop'?'Active with at least one other repairer':'Always active when selected'}</small>`}</div>`).join('')}</div>
+  <label class="effect-toggle"><input type="checkbox" data-calc="hexTotem" ${calc.hexTotem?'checked':''}>Overzealous used a Hex totem (double bonus)</label>
+  <div class="row"><button class="btn ghost" id="cb" ${role!=='S'||!build.length?'disabled':''}>Use my planner build and conditions</button></div>
+  <p class="sub">${role!=='S'?'Choose a survivor build to import repair effects.':`Planner perks supported here: ${esc(modeled.join(', ')||'none')}. ${unmodeled.length?`Not modeled here: ${esc(unmodeled.join(', '))}.`:''} Import again after changing the planner; calculator settings can be adjusted independently.`}</p>
+  <p class="big" id="co" role="status" aria-live="polite"></p><p class="sub" id="cd"></p></div>`;
+  calcOut();
+  $('#t-calc').onchange=e=>{
+    const el=e.target;
+    if(el.dataset.calcPerk){calc.on[el.dataset.calcPerk]=el.checked;calcOut();}
+    else if(el.dataset.calcActive){calc.active[el.dataset.calcActive]=el.checked;calcOut();}
+    else if(el.dataset.calc){
+      const key=el.dataset.calc;
+      calc[key]=el.type==='checkbox'?el.checked:key==='health'?el.value:Math.max(0,Math.min(key==='extra'?300:Infinity,Number(el.value)||0));
+      calcOut();
+    }
+  };
+  $('#cb').onclick=usePlannerInCalc;
+}
+
+const tick=()=>{$("#clk").textContent=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})};tick();setInterval(tick,30000);
+const tip=$("#tip");let pin=null;
+function showTip(b){tip.textContent=b.dataset.d;tip.hidden=false;const r=b.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;let y=r.bottom+6;if(y+h>innerHeight-64)y=r.top-h-6;y=Math.max(8,Math.min(y,innerHeight-h-64));tip.style.left=Math.min(Math.max(8,r.right-w),innerWidth-w-8)+"px";tip.style.top=Math.max(8,y)+"px"}
+function hideTip(){tip.hidden=true}
+const inf=e=>e.target.closest&&e.target.closest(".info");
+document.addEventListener("mouseover",e=>{const b=inf(e);if(b)showTip(b)});
+document.addEventListener("mouseout",e=>{const b=inf(e);if(b&&pin!==b&&!tip.contains(e.relatedTarget))hideTip()});
+document.addEventListener("focusin",e=>{const b=inf(e);if(b)showTip(b)});
+document.addEventListener("focusout",e=>{const b=inf(e);if(b&&pin!==b&&!tip.contains(e.relatedTarget))hideTip()});
+document.addEventListener("click",e=>{const b=inf(e);if(b){pin=pin===b?null:b;pin?showTip(b):hideTip()}else if(!tip.contains(e.target)){pin=null;hideTip()}});
+document.addEventListener("scroll",e=>{if(e.target===tip)return;pin=null;hideTip()},true);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){pin=null;hideTip()}});
+window.addEventListener("resize",()=>{pin=null;hideTip()});
+drawBuild();drawRand();drawTrack();drawCalc();drawLibrary();
+showTab(/#b=/.test(location.hash)?"build":"build");
+</script>
+<script src="dbd-auth-config.js"></script>
+<script src="dbd-accounts.js"></script>
+</body>
+</html>
