@@ -258,6 +258,7 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 <section id="t-rand" hidden></section>
 <section id="t-perks" hidden></section>
 <section id="t-account" hidden></section>
+<section id="t-admin" hidden></section>
 <section id="t-track" hidden></section>
 <section id="t-calc" hidden></section>
 <section id="t-observed" hidden></section>
@@ -317,7 +318,7 @@ try{const m=(location.hash||"").match(/#b=([SK]):(.*)/);if(m){role=m[1];build=de
 let matches=store.get("fog.matches",[]);
 
 /* ===== tabs ===== */
-const TABS=[["build","Build planner"],["rand","Random loadout"],["perks","Perks"],["account","Account"],["track","Match tracker"],["observed","Observed builds"],["items","Items & add-ons"],["calc","Gen calculator"]];
+const TABS=[["build","Build planner"],["rand","Random loadout"],["perks","Perks"],["account","Account"],["admin","Admin"],["track","Match tracker"],["observed","Observed builds"],["items","Items & add-ons"],["calc","Gen calculator"]];
 function initialTab(){
   try{const requested=new URL(location.href).searchParams.get("tab");if(TABS.some(([id])=>id===requested))return requested}catch(e){}
   if(/^#b=[SK]:/.test(location.hash||""))return "build";
@@ -325,17 +326,19 @@ function initialTab(){
   return TABS.some(([id])=>id===saved)?saved:"build";
 }
 function showTab(id){
+  if(id==="admin"&&(typeof FogAccounts==="undefined"||!FogAccounts.isAdmin()))id="account";
   if(!TABS.some(([key])=>key===id))id="build";
   $("#tbl").textContent=TABS.find(t=>t[0]===id)[1];
   TABS.forEach(([k])=>{$("#t-"+k).hidden=k!==id;$("#tab-"+k).setAttribute(k==="account"?"aria-pressed":"aria-selected",k===id)});
   store.set("fog.activeTab",id);
+  if(id==="admin"&&typeof FogAdmin!=="undefined")FogAdmin.draw();
   if(id==="track")drawMatchPerks();
   if(id==="items")drawItems();
   if(id==="observed")drawObserved();
   // Preserve build links and verification tokens while remembering this view on refresh.
   try{const url=new URL(location.href);url.searchParams.set("tab",id);window.history.replaceState(null,"",url.href)}catch(e){}
 }
-$("#tabs").innerHTML=TABS.filter(([k])=>k!=="account").map(([k,n])=>`<button role="tab" id="tab-${k}" onclick="showTab('${k}')">${n}</button>`).join("");
+$("#tabs").innerHTML=TABS.filter(([k])=>k!=="account").map(([k,n])=>`<button ${k==="admin"?"hidden":""} role="tab" id="tab-${k}" onclick="showTab('${k}')">${n}</button>`).join("");
 
 function seg(cur,fn){return `<div class="seg">${["S","K"].map(r=>`<button aria-pressed="${r===cur}" onclick="${fn}('${r}')">${RN[r]}</button>`).join("")}</div>`}
 
@@ -575,6 +578,7 @@ showTab(initialTab());
 </script>
 <script src="dbd-auth-config.js"></script>
 <!-- Version this URL when the stored match format changes, to avoid cached validators dropping fields. -->
-<script src="dbd-accounts.js?v=match-details-2"></script>
+<script src="dbd-accounts.js?v=admin-1"></script>
+<script src="dbd-admin.js?v=1"></script>
 </body>
 </html>

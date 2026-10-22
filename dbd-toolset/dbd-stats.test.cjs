@@ -89,6 +89,7 @@ context.window={addEventListener(){}};
 context.location={hash:''};context.localStorage={getItem(){return null}};context.setInterval=()=>{};
 const html=read('dbd-toolkit.html');
 const inline=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');
+context.dataLayer=context.window.dataLayer=[];
 vm.runInContext(inline,context);
 const run=code=>vm.runInContext(code,context);
 run('build=["Resilience","Finesse"];drawBuild()');

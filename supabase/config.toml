@@ -1,0 +1,4 @@
+# The function itself validates the bearer token with Supabase Auth on EVERY request.
+# This supports current signing keys without the gateway's legacy JWT verifier.
+[functions.admin-analytics]
+verify_jwt = false

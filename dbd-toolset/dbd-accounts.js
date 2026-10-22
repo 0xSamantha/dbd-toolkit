@@ -105,7 +105,19 @@ const FogAccounts=(()=>{
       await loadMatches(token,owner);
     }else{matches=[...new Map([...matches,...cleaned].map(m=>[m.id,m])).values()].sort((a,b)=>b.id-a.id);store.set('fog.matches',matches);}
   }
+  function isAdmin(){return !!user?.email_confirmed_at&&user.id==='16a1ddb9-7ebe-4281-a3f7-494c4da72166'&&!loading;}
+  async function analytics(days){
+    requireReady();if(!isAdmin())throw Error('Admin access required.');
+    const {data,error}=await client.functions.invoke('admin-analytics',{body:{days}});
+    if(error){
+      let detail;try{detail=(await error.context.json()).error}catch{}
+      throw Error(detail||'Analytics is unavailable. Deploy admin-analytics and follow ADMIN-SETUP.md.');
+    }
+    if(data?.error)throw Error(data.error);
+    return data;
+  }
   function drawAccount(){
+    if(window.FogAdmin)window.FogAdmin.sync();
     if(typeof drawPresetManager==='function')drawPresetManager();
     const prompt=$('#account-prompt');if(prompt)prompt.hidden=!!user||loading;
     const node=$('#t-account');if(!node)return;
@@ -159,6 +171,6 @@ const FogAccounts=(()=>{
       drawAccount();
     }catch(error){notice(error.message);}
   }
-  return {presetStorageKey:()=>user?'fog.presets.'+user.id:'fog.presets.guest',canManagePresets:()=>!loading&&!busy,init,drawAccount,modeNote,saveMatch,deleteMatch,importMatches,validateMatch,observedMode,saveObserved,deleteObserved,importObserved,copyGuestObserved};
+  return {isAdmin,analytics,presetStorageKey:()=>user?'fog.presets.'+user.id:'fog.presets.guest',canManagePresets:()=>!loading&&!busy,init,drawAccount,modeNote,saveMatch,deleteMatch,importMatches,validateMatch,observedMode,saveObserved,deleteObserved,importObserved,copyGuestObserved};
 })();
 FogAccounts.init();

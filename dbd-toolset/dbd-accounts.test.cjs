@@ -32,7 +32,8 @@ async function main(){
   location:{hash:''},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){}});
  const run=s=>vm.runInContext(s,context);
  for(const name of ['dbd-perks.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
- assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=match-details-2'));
+ assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=admin-1'));
+ run('globalThis.dataLayer=window.dataLayer=[]');
  const inline=[...read('dbd-toolkit.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');run(inline);
  run(read('dbd-accounts.js'));
  context.fieldRecord={...record(123),map:'Coal Tower',opposingKiller:'The Clown'};
@@ -147,6 +148,31 @@ async function main(){
  current={id:'unverified',email:'c@example.com',email_confirmed_at:null};listener('SIGNED_IN',{user:current});await flush();
  assert.equal(run('matches.length'),0);await assert.rejects(run('FogAccounts.saveMatch(record)'),/wait/);
  assert(get('#t-account').innerHTML.includes('verify your email'));
+ run(read('dbd-admin.js'));
+ assert.equal(run('FogAccounts.isAdmin()'),false);
+ assert.equal(get('#tab-admin').hidden,true);
+ current={id:'16a1ddb9-7ebe-4281-a3f7-494c4da72166',email:'owner@example.com',email_confirmed_at:'2026-10-22'};
+ listener('SIGNED_IN',{user:current});await flush();
+ assert.equal(run('FogAccounts.isAdmin()'),true);
+ assert.equal(get('#tab-admin').hidden,false);
+ run('showTab("admin")');
+ assert(get('#t-admin').innerHTML.includes('Site analytics'));
+ client.functions={invoke:async(name,{body})=>{
+  assert.equal(name,'admin-analytics');assert.equal(body.days,30);
+  return {data:{totals:{visitors:10,views:25,sessions:12},
+   locations:[{country:'<script>bad</script>',region:'California',visitors:8}],
+   daily:[{date:'20261021',visitors:10,views:25,sessions:12}],
+   generatedAt:'2026-10-22T00:00:00Z',timezone:'America/Los_Angeles'},error:null};
+ }};
+ await get('#admin-refresh').onclick();
+ assert(get('#admin-report').innerHTML.includes('2026-10-21'));
+ assert(get('#admin-report').innerHTML.includes('&lt;script&gt;bad&lt;/script&gt;'));
+ assert(!get('#admin-report').innerHTML.includes('<script>'));
+
+ current=null;listener('SIGNED_OUT',null);await flush();
+ assert.equal(get('#tab-admin').hidden,true);
+ assert.equal(get('#t-admin').innerHTML,'');
+ assert.equal(get('#t-admin').hidden,true);
  console.log('PASS: library search and role counts; account/observed-build isolation; missing-migration fallback; guest preservation; offline write failure; deletion ownership; unverified-user write blocking. Live database RLS and email delivery still require project setup.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1});
