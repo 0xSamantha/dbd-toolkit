@@ -8,7 +8,7 @@ Observed entries are entirely separate from own match history and most-used-perk
 
 ## Items & Add-ons
 
-Data: [dbd.source.gs 10.2.0 item snapshot](https://dbd.source.gs/items/), build 10.2.0-3840818. Contains 8 med-kits, 10 toolboxes, 14 med-kit add-ons and 11 toolbox add-ons, including event variants. Zero, one and two distinct add-ons yield 848 med-kit combinations and 670 toolbox combinations. Search and sort the full list; 25 rows are shown per page. Pin a setup to compare it alongside another under the same current conditions.
+Data: [dbd.source.gs 10.2.0 item snapshot](https://dbd.source.gs/items/), build 10.2.0-3840818. Contains 8 med-kits, 10 toolboxes, 14 med-kit add-ons and 11 toolbox add-ons, including event variants. Zero, one and two distinct add-ons yield 848 med-kit combinations and 670 toolbox combinations. The primary calculator uses a game-style equipment row and clickable icon inventory: select the item slot or either add-on slot, then equip a compatible tile. Charges and action stats update below the slots. The charge breakdown separates the item’s base capacity from each add-on. Med-kits show altruistic healing and self-healing together. Search and sort the optional full list; 25 rows are shown per page. Pin a setup to compare it alongside another under the same current conditions.
 
 Estimates distinguish active speed from item capacity:
 

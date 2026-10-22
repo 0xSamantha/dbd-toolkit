@@ -20,9 +20,9 @@ main.window{max-width:880px;margin:0 auto;background:var(--face);border:1px soli
 .body{padding:12px}
 h2{font-size:24px;font-weight:normal;color:var(--navy);margin:0 0 12px;padding-bottom:4px;border-bottom:2px solid var(--blood)}
 p.sub{color:var(--mu);margin:0 0 12px}
-nav{display:flex;gap:4px;overflow-x:auto;margin-bottom:12px;padding-bottom:4px}
+nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;overflow:visible;margin-bottom:16px;padding:6px;background:var(--panel);border:1px solid var(--edge)}
 nav button,.btn,.seg button,.grid button{border:0;border-radius:0;background:#373336;box-shadow:var(--raised);color:var(--tx);font:inherit;cursor:pointer;padding:3px 12px;min-height:26px}
-nav button{white-space:nowrap}
+nav button{white-space:normal;min-width:0;overflow-wrap:anywhere;line-height:1.15}
 nav button[aria-selected=true],.seg button[aria-pressed=true],.grid button.on,.btn:active,.slot button:active{box-shadow:var(--sunk);background:#633033;font-weight:bold;padding:4px 11px 2px 13px}
 .btn{font-weight:bold}
 .btn.ghost{font-weight:normal}
@@ -156,12 +156,80 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 #t-items h3{font-weight:normal;color:var(--navy)}
 [hidden]{display:none!important}
 
+/* Item calculator uses the game's square loadout/inventory visual language. */
+.item-workbench{background:linear-gradient(135deg,#242b2be8,#171a1cee);border-top:2px solid #81745b}
+.loadout-heading,.inventory-heading,.selected-item-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.loadout-heading h2{margin:2px 0 12px;border:0;padding:0;color:var(--tx)}
+.equipment-label{text-transform:uppercase;letter-spacing:1.5px;font-size:16px;color:#b9b9b0}
+.equipment-rack{display:grid;grid-template-columns:minmax(0,1.15fr) 20px minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center;max-width:440px;margin:20px 0 24px}
+.equipment-slot{min-width:0;display:grid;gap:8px}
+.equipment-plus{color:#aba694;text-align:center;font-size:26px;padding-top:24px}
+.loadout-tile{--rarity:#6e512d;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:100%;min-width:0;min-height:88px;padding:8px;border:2px solid #817b69;background:linear-gradient(145deg,#ffffff12,transparent 50%),var(--rarity);box-shadow:inset 0 0 14px #0005,0 2px 4px #0006;font:inherit;color:#fff;cursor:pointer;transition:border-color .12s,background-color .12s;overflow-wrap:anywhere}
+.rarity-common{--rarity:#655036}.rarity-uncommon{--rarity:#8b722d}.rarity-rare{--rarity:#3c603a}.rarity-very-rare{--rarity:#603c7d}.rarity-visceral{--rarity:#843247}
+.loadout-tile img{display:block;width:64px;height:64px;max-width:100%;object-fit:contain;filter:drop-shadow(0 2px 2px #0008);pointer-events:none}
+.loadout-tile-name{font-size:16px;line-height:1.1;text-align:center;max-width:100%}
+.equipment-rack .loadout-tile{min-height:124px}
+.inventory-active{border-color:#fff;outline:2px solid #d9ccb2;outline-offset:3px}
+.is-equipped{border-color:#ece2c8}
+.equipped-mark{position:absolute;right:3px;top:1px;background:#181a17d9;color:#fff;padding:0 4px;font-size:16px}
+.empty-item-slot{font-size:38px;line-height:1.2;color:#d5ccba}
+.inventory-empty{--rarity:#222729;border-style:dashed}
+.inventory-heading{border-top:1px solid #686557;margin-top:18px;padding-top:14px}
+.item-inventory{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:10px;max-height:360px;overflow-y:auto;padding:5px 4px 12px;scrollbar-color:#8d7964 #171b1b}
+.item-inventory .loadout-tile{align-self:stretch;min-height:116px}
+.item-inventory .loadout-tile img{width:54px;height:54px}
+@media(hover:hover){.loadout-tile:hover{border-color:#fff;box-shadow:inset 0 0 16px #ffffff12,0 2px 4px #0006}}
+.loadout-results{margin:12px 0;padding:16px 0;border-top:1px solid #676152;border-bottom:1px solid #676152}
+#t-items .selected-item-heading h3{font-size:27px;color:#e5d4ac;margin:4px 0}
+.selected-item-heading>div:first-child{flex:1 1 180px;min-width:0}
+.charge-total{display:flex;flex-direction:column;align-items:center;min-width:104px;padding:8px 12px;border:1px solid #86704f;background:#171b1b}
+.charge-total b{font-size:42px;font-weight:normal;color:#f0dca8;line-height:1}
+.charge-total span{color:var(--mu);font-size:16px}
+.charge-breakdown{background:#151a1a;padding:8px 10px;border-left:3px solid #c0a26a;overflow-wrap:anywhere;color:#decaa2}
+.item-live-stats{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:12px}
+.item-live-stats .stat{border:1px solid #484b43;background:#1a2020}
+.item-live-stats .stat b{font-size:26px;color:#e8d6b5;margin:5px 0}
+.item-effect-details,.item-conditions{padding:8px 0;margin-bottom:12px}
+#item-pinned:empty{display:none}
+@media(max-width:600px){
+  .equipment-rack{grid-template-columns:minmax(0,1.1fr) 12px minmax(0,1fr) minmax(0,1fr);gap:8px;max-width:100%}
+  .equipment-label{font-size:14px;letter-spacing:1px}
+  .equipment-rack .loadout-tile{padding:5px;min-height:110px}
+  .equipment-rack img{width:54px;height:54px}
+  .item-inventory{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:340px}
+  .item-inventory .loadout-tile{min-height:110px;padding:5px}
+  .item-live-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .loadout-heading .seg{margin:0 0 8px;display:flex;width:100%}
+  .loadout-heading .seg button{flex:1}
+  .charge-total{min-width:86px;padding:8px}
+  .charge-total b{font-size:36px}
+}
+
+/* Info controls remain separate from equip buttons, so inspecting never changes a loadout. */
+.item-tile-wrap{position:relative;min-width:0;display:flex;align-items:stretch}
+.item-tile-wrap>.loadout-tile{padding-top:36px;height:100%}
+.item-info{position:absolute;top:3px;right:3px;width:36px;height:36px;min-height:36px;padding:0;border:1px solid #c6bbaa;background:#17191de8;color:#fff;font:bold italic 18px/1 Georgia,serif;cursor:pointer;display:grid;place-items:center;z-index:1}
+.item-info:hover,.item-info:focus-visible{background:#55423f}
+.item-tile-wrap .equipped-mark{right:auto;left:3px;top:3px}
+.account-prompt{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px;padding:12px 14px;background:linear-gradient(100deg,#38292f,#25272d);border:1px solid #795758;border-left:3px solid #ba7973}
+.account-prompt>div{flex:1 1 260px;min-width:0}
+.account-prompt strong{color:#edc9b8;font-weight:normal;font-size:22px}
+.account-prompt p{margin:4px 0}
+.account-prompt .btn{min-height:44px;white-space:normal}
+@media(min-width:421px) and (max-width:600px){nav{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){
+  .item-info{width:44px;height:44px;min-height:44px}
+  .item-tile-wrap>.loadout-tile{padding-top:46px}
+  .account-prompt{padding:10px}
+  .account-prompt .btn{width:100%}
+}
 </style>
 </head>
 <body>
 <main class="window">
 <header class="title-bar"><div class="header-brand"><h1>TS DBD Toolkit</h1><span>Dead by Daylight</span></div><button type="button" class="account-button" id="tab-account" aria-controls="t-account" aria-pressed="false" onclick="showTab('account')">Account</button></header>
 <div class="body">
+<aside id="account-prompt" class="account-prompt" aria-label="Save your progress"><div><strong>Keep your builds and match history.</strong><p>Create an account to save your logs and access them on other devices.</p><small>Already have guest logs? Copy them into your account after signing in.</small></div><button class="btn" type="button" onclick="showTab('account')">Create an account / Sign in</button></aside>
 <p class="sub">For Dead by Daylight: loadout planner, random loadout generator, match logging with stats, generator calculator. </p>
 <nav role="tablist" id="tabs"></nav>
 

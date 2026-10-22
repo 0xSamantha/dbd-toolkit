@@ -105,20 +105,24 @@ const FogAccounts=(()=>{
     }else{matches=[...new Map([...matches,...cleaned].map(m=>[m.id,m])).values()].sort((a,b)=>b.id-a.id);store.set('fog.matches',matches);}
   }
   function drawAccount(){
+    const prompt=$('#account-prompt');if(prompt)prompt.hidden=!!user||loading;
     const node=$('#t-account');if(!node)return;
     const online=!!client;
+    const displayName=typeof user?.user_metadata?.display_name==='string'?user.user_metadata.display_name.trim().slice(0,40):'';
     node.innerHTML=`<div class="card"><h2>Account</h2><p class="sub">Create an account to keep your match history private and available on your other devices.</p>
     <p role="status" aria-live="polite">${esc(message)}</p>
-    ${!configured?'<p>Online accounts are not connected yet. The planner, perk library and guest match log are available.</p>':!online?'<p>Account service is loading or unavailable. Guest features still work.</p>':user?`<p>Signed in as <b>${esc(user.email)}</b>. Email verified.</p><div class="row"><button class="btn" data-account="signout">Sign out</button><button class="btn ghost" data-account="upload" ${loading||busy?'disabled':''}>Copy this browser’s guest matches into my account</button></div><p class="sub">Copying keeps the guest backup in this browser and merges records by match ID. Other users cannot see your cloud history.</p>`:`<form id="account-form"><label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label><label>Password<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><p class="sub">Use at least 12 characters when registering. Open the verification link in your email before signing in.</p><div class="row"><button class="btn" type="submit" data-mode="signin" ${busy?'disabled':''}>Sign in</button><button class="btn ghost" type="submit" data-mode="signup" ${busy?'disabled':''}>Register</button><button class="btn ghost" type="button" data-account="resend" ${busy?'disabled':''}>Resend verification email</button></div></form>${loading?'<button class="btn ghost" data-account="signout">Sign out / return to guest mode</button>':''}`}</div>`;
+    ${!configured?'<p>Online accounts are not connected yet. The planner, perk library and guest match log are available.</p>':!online?'<p>Account service is loading or unavailable. Guest features still work.</p>':user?`<p>Signed in as <b>${esc(displayName||user.email)}</b>. Email verified.${displayName?`<br><small>${esc(user.email)}</small>`:""}</p><div class="row"><button class="btn" data-account="signout">Sign out</button><button class="btn ghost" data-account="upload" ${loading||busy?'disabled':''}>Copy this browser’s guest matches into my account</button></div><p class="sub">Copying keeps the guest backup in this browser and merges records by match ID. Other users cannot see your cloud history.</p>`:`<form id="account-form"><label>Display name (optional, for registration)<input name="displayName" type="text" autocomplete="nickname" maxlength="40" placeholder="What should we call you?"></label><label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label><label>Password<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><p class="sub">Display names can be up to 40 characters and are optional. Sign in using your email. Use at least 12 characters when registering. Open the verification link in your email before signing in.</p><div class="row"><button class="btn" type="submit" data-mode="signin" ${busy?'disabled':''}>Sign in</button><button class="btn ghost" type="submit" data-mode="signup" ${busy?'disabled':''}>Register</button><button class="btn ghost" type="button" data-account="resend" ${busy?'disabled':''}>Resend verification email</button></div></form>${loading?'<button class="btn ghost" data-account="signout">Sign out / return to guest mode</button>':''}`}</div>`;
     const form=$('#account-form');
     if(form)form.onsubmit=async e=>{
       e.preventDefault();if(busy)return;
       const email=form.elements.email.value.trim(),password=form.elements.password.value,mode=e.submitter?.dataset.mode||'signin';
+      const signupName=(form.elements.displayName?.value||'').trim();
       busy=true;notice('Please wait…');
       try{
         if(mode==='signup'){
           if(password.length<12)throw Error('Use at least 12 characters for your password.');
-          const {error}=await client.auth.signUp({email,password,options:{emailRedirectTo:config.redirectUrl}});if(error)throw error;
+          if(signupName.length>40)throw Error('Use no more than 40 characters for your display name.');
+          const {error}=await client.auth.signUp({email,password,options:{emailRedirectTo:config.redirectUrl,data:signupName?{display_name:signupName}:{}}});if(error)throw error;
           notice('If registration is available for this address, check your inbox for a verification link. After verifying, sign in.');
         }else{
           const {error}=await client.auth.signInWithPassword({email,password});if(error)throw error;

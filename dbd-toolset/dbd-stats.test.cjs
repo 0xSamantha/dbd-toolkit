@@ -139,4 +139,26 @@ context.location.href+='?tab=invalid';run('store.set("fog.activeTab","invalid")'
 assert.equal(run('initialTab()'),'build');
 run('showTab("track")');
 assert.equal(new URL(run('link()')).searchParams.get('tab'),'build');
+// Game-style inventory equips one item and two distinct add-ons with live stats.
+run('role="S";build=[];showTab("items");equipInventoryItem("commodious-toolbox")');
+assert(get('#item-result').innerHTML.includes('32 base'));
+run('itemCompare.activeSlot="addon0";equipInventoryItem("wire-spool");itemCompare.activeSlot="addon1";equipInventoryItem("scraps")');
+assert.equal(run('calculateItem(itemCompare.item,itemCompare.addons).capacity'),52);
+assert(get('#item-result').innerHTML.includes('32 base + 12 Wire Spool + 8 Scraps'));
+run('equipInventoryItem("wire-spool")');
+assert.equal(run('itemCompare.addons[0]'),'');
+assert.equal(run('itemCompare.addons[1]'),'wire-spool');
+run('itemCompare.kind="medkit";itemCompare.item="";itemCompare.addons=["",""];drawItems()');
+assert(get('#item-result').innerHTML.includes('Heal another survivor'));
+assert(get('#item-result').innerHTML.includes('Self-heal'));
+assert(get('#t-items').innerHTML.includes('equipment-rack'));
+// Every inventory tile and occupied equipment slot exposes an independent info button.
+run('itemCompare.activeSlot="item";itemCompare.inventoryQuery="";drawItems()');
+assert.equal((get('#item-inventory').innerHTML.match(/class="info item-info"/g)||[]).length,8);
+assert(get('#t-items').innerHTML.includes('aria-label="About Ranger Med-kit"'));
+run('itemCompare.activeSlot="addon0";drawItems()');
+assert.equal((get('#item-inventory').innerHTML.match(/class="info item-info"/g)||[]).length,14);
+const equippedBefore=run('JSON.stringify(itemCompare.addons)');
+get('#t-items').onclick({target:{closest:()=>null}});
+assert.equal(run('JSON.stringify(itemCompare.addons)'),equippedBefore);
 console.log(`PASS: ${checks} numeric checks; 321-perk dataset integrity; startup; search; warnings; planner/calculator parity; conditional controls and live 10.2.0 UI.`);

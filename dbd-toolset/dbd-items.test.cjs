@@ -13,6 +13,8 @@ near(r.capacity,16);near(r.rate,2);near(r.itemSeconds,8);near(r.time,82);near(r.
 r=result('commodious-toolbox');near(r.rate,1.5);near(r.time,32/1.5+58);
 r=result('engineers-toolbox',['socket-swivels','clean-rag']);near(r.rate,2.5);near(r.time,16/2.5+74);
 r=result('engineers-toolbox',['wire-spool','scraps']);near(r.capacity,36);near(r.time,72);
+r=result('commodious-toolbox',['wire-spool','scraps']);near(r.capacity,52);
+r=result('commodious-toolbox',['hacksaw','cutting-wire'],{planner:true,role:'S',build:['Resilience'],scenario:{health:'injured'}});near(r.sabotage,104.5);
 r=result('engineers-toolbox',['brand-new-part'],{installed:true});near(r.charges,80);near(r.time,72);
 r=result('engineers-toolbox',['brand-new-part'],{installed:false});near(r.time,82);
 r=result('camping-aid-kit',[],{action:'others'});near(r.time,16/1.35);near(r.cost,16);near(r.fullHeals,1);

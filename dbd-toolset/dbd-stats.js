@@ -6,7 +6,7 @@
 const BUILD_EFFECTS={
   'Botany Knowledge':{effects:{heal:[30,40,50]}},
   'Déjà Vu':{when:'highlighted',effects:{repair:[4,5,6]}},
-  'Resilience':{when:'injured',effects:{repair:[7,8,9],heal:[7,8,9],vault:[7,8,9]}},
+  'Resilience':{when:'injured',effects:{repair:[7,8,9],heal:[7,8,9],vault:[7,8,9],sabotage:[7,8,9]}},
   'Prove Thyself':{when:'Other repairers are within 4 m',team:true,effects:{repair:[6,8,10]}},
   'Spine Chill':{when:'12-second effect after Killer looks at you within 40 m',effects:{vault:10}},
   'Windows of Opportunity':{when:'Window vault bonus off cooldown',window:true,effects:{vault:10}},
@@ -72,7 +72,7 @@ function actionFactor(sources){
   return (1+positive/100)*penalties;
 }
 function calculateBuildStats(names,r,state){
-  const raw=Object.fromEntries(['haste','repair','teamRepair','heal','vault','break','pickup','miss','hit','genCharges'].map(k=>[k,[]]));
+  const raw=Object.fromEntries(['haste','repair','teamRepair','heal','vault','break','pickup','miss','hit','genCharges','sabotage'].map(k=>[k,[]]));
   const applied=[],unsupported=names.filter(n=>!BUILD_EFFECTS[n]);
   const invocation=names.includes('Invocation: Weaving Spiders')&&!!state.active['Invocation: Weaving Spiders'];
   const injury=names.includes('No Mither')||invocation||state.health!=='healthy';
@@ -102,7 +102,7 @@ function calculateBuildStats(names,r,state){
   if(state.extraRepair)raw.repair.push({name:'Extra repair source',value:state.extraRepair});
   const breakdown=Object.fromEntries(Object.entries(raw).map(([key,values])=>[key,diminishSources(values)]));
   const totals=Object.fromEntries(Object.entries(breakdown).map(([key,values])=>[key,values.reduce((sum,s)=>sum+s.effective,0)]));
-  for(const key of ['repair','teamRepair','heal','vault','break','pickup'])totals[key]=(actionFactor(raw[key])-1)*100;
+  for(const key of ['repair','teamRepair','heal','vault','break','pickup','sabotage'])totals[key]=(actionFactor(raw[key])-1)*100;
   const efficiency=[1,.85,.7,.55][state.repairers-1];
   const personalRate=efficiency*actionFactor(raw.repair);
   const teamRate=personalRate+(state.repairers-1)*efficiency*actionFactor(raw.teamRepair);
@@ -129,7 +129,7 @@ function drawBuildStats(){
   const select=(key,options)=>`<select data-stat="${key}">${options.map(([v,label])=>`<option value="${v}" ${String(state[key])===String(v)?'selected':''}>${label}</option>`).join('')}</select>`;
   const conditions=build.filter(n=>BUILD_EFFECTS[n]?.when&&!['injured','deep','highlighted','coop'].includes(BUILD_EFFECTS[n].when));
   const fmt=value=>Number(value.toFixed(3));
-  const labels={haste:'Movement Haste',repair:'Repair speed',heal:'Healing speed',vault:'Vault speed',break:'Break / damage speed',pickup:'Pickup / drop speed',miss:'Missed basic-attack cooldown reduction',hit:'Successful basic-attack cooldown reduction',genCharges:'Permanent generator charges'};
+  const labels={sabotage:'Sabotage speed',haste:'Movement Haste',repair:'Repair speed',heal:'Healing speed',vault:'Vault speed',break:'Break / damage speed',pickup:'Pickup / drop speed',miss:'Missed basic-attack cooldown reduction',hit:'Successful basic-attack cooldown reduction',genCharges:'Permanent generator charges'};
   const stat=(label,value,note)=>`<div class="stat"><span>${label}</span><b>${value}</b><small>${note}</small></div>`;
   $('#build-stats').innerHTML=`<details class="card" open><summary>Build speed estimates</summary>
     <p class="sub">Choose your situation. Conditional effects start off; check them only while their trigger is active. Values and stacking use patch ${esc(DBD_PERK_DATA.version)}.</p>
