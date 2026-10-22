@@ -223,6 +223,7 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
   .account-prompt{padding:10px}
   .account-prompt .btn{width:100%}
 }
+.perk-owner{display:block;color:#d4c2de;font-size:16px;font-weight:normal;line-height:1.2}
 </style>
 </head>
 <body>
@@ -256,12 +257,14 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 /* ===== DATA (loaded from dbd-perks.js) ===== */
 const PERKS={S:[],K:[]};
 const DESC=Object.create(null);
+const PERK_OWNERS=Object.create(null);
 const ICONS=Object.create(null);
 DBD_PERK_DATA.perks.forEach(perk=>{
   const role=perk.role==="survivor"?"S":perk.role==="killer"?"K":null;
   if(!role)return;
   PERKS[role].push([perk.name,perk.tags.join(", ")]);
   DESC[perk.name]=perk.desc;
+  PERK_OWNERS[perk.name]=perk.meta?.owner||"General perk";
   ICONS[perk.name]=perk.icon;
 });
 Object.values(PERKS).forEach(list=>list.sort((a,b)=>a[0].localeCompare(b[0])));
@@ -273,8 +276,9 @@ const CHALLENGES={S:["No healing perks","Only green or lower items","Hatch is no
 /* ===== helpers ===== */
 const $=(s,r=document)=>r.querySelector(s);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function perkOwner(name){return PERK_OWNERS[name]||"General perk"}
 function perkInfo(name){
-  return DESC[name]?`<button class="info" aria-describedby="tip" aria-label="About ${esc(name)}" data-d="${esc(DESC[name])}">i</button>`:"";
+  return DESC[name]?`<button class="info" aria-describedby="tip" aria-label="About ${esc(name)}" data-d="${esc(perkOwner(name)+": "+DESC[name])}">i</button>`:"";
 }
 function perkIcon(name){
   const src=ICONS[name];
@@ -356,18 +360,18 @@ function share(){const u=link(),o=$("#lnk");o.hidden=false;o.value=u;o.select();
 function drawBuild(){
   const cat=n=>(PERKS[role].find(p=>p[0]===n)||[])[1]||"";
   $("#t-build").innerHTML=`<div class="card"><h2>Build planner</h2>${seg(role,"setRole")}
-  <div class="slots">${[0,1,2,3].map(i=>build[i]?`<div class="slot full">${perkInfo(build[i])}${perkIcon(build[i])}<div>${esc(build[i])}<br><small>${cat(build[i])}</small></div><button onclick="toggle('${build[i].replace(/'/g,"\\'")}')">Remove</button></div>`:`<div class="slot"><small>Empty slot ${i+1}</small></div>`).join("")}</div>
+  <div class="slots">${[0,1,2,3].map(i=>build[i]?`<div class="slot full">${perkInfo(build[i])}${perkIcon(build[i])}<div>${esc(build[i])}<br><small class="perk-owner">${esc(perkOwner(build[i]))}</small><small>${esc(cat(build[i]))}</small></div><button onclick="toggle('${build[i].replace(/'/g,"\\'")}')">Remove</button></div>`:`<div class="slot"><small>Empty slot ${i+1}</small></div>`).join("")}</div>
   ${buildNotesHTML(build,role)}
   <div class="row">${role==="S"?`<button class="btn" onclick="usePlannerInCalc()">Check generator time</button>`:""}<button class="btn" onclick="share()">Copy share link</button><button class="btn ghost" onclick="build=[];drawBuild()">Clear</button></div>
   <input id="lnk" readonly hidden style="width:100%;margin-bottom:10px" aria-label="Share link">
-  <input id="q" type="search" placeholder="Search perks or a tag like generator, aura-reading, hook" value="${esc(q)}" style="width:100%" oninput="q=this.value;drawGrid()">
+  <input id="q" type="search" placeholder="Search perks, characters or tags" value="${esc(q)}" style="width:100%" oninput="q=this.value;drawGrid()">
   <div class="grid" id="grid"></div><div id="build-stats"></div></div>`;
   drawGrid();drawBuildStats();
 }
 function drawGrid(){
   const query=searchText(q);
-  const l=PERKS[role].filter(p=>searchText(p[0]+" "+p[1]).includes(query));
-  $("#grid").innerHTML=l.length?l.map(p=>`<div class="pk"><button class="${build.includes(p[0])?"on":""}" data-n="${esc(p[0])}">${perkIcon(p[0])}<span>${esc(p[0])}</span><span class="tag">${esc(p[1])}</span></button>${DESC[p[0]]?`<button class="info" aria-describedby="tip" aria-label="About ${esc(p[0])}" data-d="${esc(DESC[p[0]])}">i</button>`:""}</div>`).join(""):"<p class='sub'>No perks match that search.</p>";
+  const l=PERKS[role].filter(p=>searchText(p[0]+" "+p[1]+" "+perkOwner(p[0])).includes(query));
+  $("#grid").innerHTML=l.length?l.map(p=>`<div class="pk"><button class="${build.includes(p[0])?"on":""}" data-n="${esc(p[0])}">${perkIcon(p[0])}<span>${esc(p[0])}</span><small class="perk-owner">${esc(perkOwner(p[0]))}</small><span class="tag">${esc(p[1])}</span></button>${DESC[p[0]]?`<button class="info" aria-describedby="tip" aria-label="About ${esc(p[0])}" data-d="${esc(perkOwner(p[0])+": "+DESC[p[0]])}">i</button>`:""}</div>`).join(""):"<p class='sub'>No perks match that search.</p>";
   $("#grid").onclick=e=>{const b=e.target.closest("button[data-n]");if(b)toggle(b.dataset.n)};
 }
 
@@ -395,7 +399,7 @@ function drawRand(){
   if(roll&&wantMod&&!roll.mod)roll.mod=pick(CHALLENGES[rr],1)[0];
   $("#t-rand").innerHTML=`<div class="card"><h2>Random loadout</h2>${seg(rr,"setRR")}
   <div class="row"><label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="mod" ${wantMod?"checked":""} onchange="doRoll()">Add a challenge</label><button class="btn" onclick="doRoll()">Roll again</button></div>
-  ${roll?`${roll.ch?`<p class="big">${esc(roll.ch)}</p>`:""}<div class="slots">${roll.perks.map(p=>`<div class="slot full">${perkInfo(p)}${perkIcon(p)}<span>${esc(p)}</span></div>`).join("")}</div>${buildNotesHTML(roll.perks,roll.r)}${wantMod&&roll.mod?`<p><b>Challenge:</b> ${esc(roll.mod)}</p>`:""}<button class="btn ghost" onclick="toBuilder()">Open in build planner</button>`:"<p class='sub'>Press Roll again to get your first loadout.</p>"}</div>`;
+  ${roll?`${roll.ch?`<p class="big">${esc(roll.ch)}</p>`:""}<div class="slots">${roll.perks.map(p=>`<div class="slot full">${perkInfo(p)}${perkIcon(p)}<span>${esc(p)}</span><small class="perk-owner">${esc(perkOwner(p))}</small></div>`).join("")}</div>${buildNotesHTML(roll.perks,roll.r)}${wantMod&&roll.mod?`<p><b>Challenge:</b> ${esc(roll.mod)}</p>`:""}<button class="btn ghost" onclick="toBuilder()">Open in build planner</button>`:"<p class='sub'>Press Roll again to get your first loadout.</p>"}</div>`;
 }
 
 /* ===== match tracker ===== */
