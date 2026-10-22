@@ -47,7 +47,12 @@ async function main(){
  const flush=async()=>{for(let i=0;i<20;i++){await Promise.resolve();while(tasks.length)tasks.shift()();}};
  await flush();
  await run('FogAccounts.saveMatch({...fieldRecord,perks:["Bond"]})');
+ let editDialogOpens=0;
+ get('#match-edit-dialog').showModal=()=>{editDialogOpens++};
+
  run('editMatch(123)');
+ assert.equal(editDialogOpens,1,'Edit must open the selected entry in a dialog');
+ assert(get('#t-track').innerHTML.includes('Edit match — Meg · 2026-10-20'));
  assert.equal(get('#fc').value,'Meg');
  assert.equal(get('#fm').value,'Coal Tower');
  assert.equal(get('#fk').value,'The Clown');
