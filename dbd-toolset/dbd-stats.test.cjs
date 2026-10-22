@@ -196,4 +196,10 @@ assert(get('#t-track').innerHTML.includes('Killer faced (optional)'));
 assert(get('#t-track').innerHTML.includes('Map (optional)'));
 run('tr="K";drawTrack()');
 assert(!get('#t-track').innerHTML.includes('Killer faced (optional)'));
+// October 22 UTC is still October 21 in California.
+assert.equal(run('localMatchDate(new Date("2026-10-21T19:00:00-07:00"))'),
+  new Date("2026-10-21T19:00:00-07:00").getFullYear()+"-"+
+  String(new Date("2026-10-21T19:00:00-07:00").getMonth()+1).padStart(2,"0")+"-"+
+  String(new Date("2026-10-21T19:00:00-07:00").getDate()).padStart(2,"0"));
+assert.equal(run('localMatchDate({getFullYear:()=>2026,getMonth:()=>9,getDate:()=>21})'),"2026-10-21");
 console.log(`PASS: ${checks} numeric checks; 321-perk dataset integrity; startup; search; warnings; planner/calculator parity; conditional controls and live 10.2.0 UI.`);

@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-826YJEHMG0"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-826YJEHMG0');
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TS DBD Toolkit</title>
@@ -445,6 +454,10 @@ function showMatchSuggestions(id,kind){
   box.innerHTML=names.length?names.map(name=>`<button type="button" class="btn ghost" data-name="${esc(name)}" onclick="chooseMatchName('${id}',this.dataset.name)">${esc(name)}</button>`).join(""):'<small>No suggestions. You can keep your typed name.</small>';
 }
 function chooseMatchName(id,name){$("#"+id).value=name;$("#"+id).focus();$("#"+id+"-suggestions").hidden=true}
+// Date inputs use the visitor's calendar day, rather than the UTC day.
+function localMatchDate(date=new Date()){
+  return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
+}
 let tr="S",editingMatch=null;
 function cancelMatchEdit(){
   editingMatch=null;matchPerkDraft={role:tr,enabled:false,perks:[],source:""};drawTrack();
@@ -461,7 +474,7 @@ function setTR(r){tr=r;matchPerkDraft={role:r,enabled:false,perks:[],source:""};
 async function save(){
   let perks;try{perks=recordedMatchPerks()}catch(error){alert(error.message);return;}
   if(editingMatch&&!matches.includes(editingMatch)){cancelMatchEdit();alert("This match is no longer available. Please reopen it from history.");return;}
-  const rec={id:editingMatch?.id||Date.now(),date:$("#fd").value||new Date().toISOString().slice(0,10),role:tr,character:matchName($("#fc").value||"",tr)||"Unknown",
+  const rec={id:editingMatch?.id||Date.now(),date:$("#fd").value||localMatchDate(),role:tr,character:matchName($("#fc").value||"",tr)||"Unknown",
     map:matchName($("#fm").value||"","map"),opposingKiller:tr==="S"?matchName($("#fk").value||"","K"):"",
     result:tr==="K"&&/^[0-4]$/.test($("#fr").value)?Number($("#fr").value):$("#fr").value,perks,notes:$("#fn").value.trim()};
   try{await FogAccounts.saveMatch(rec);cancelMatchEdit()}catch(error){alert("Match was not saved: "+error.message)}
@@ -475,7 +488,7 @@ function drawTrack(){
     editingMatch=null;matchPerkDraft={role:tr,enabled:false,perks:[],source:""};
   }
   $("#t-track").innerHTML=`${matchMetricsHTML(matches)}${editingMatch?'<dialog id="match-edit-dialog" aria-labelledby="match-editor-title" oncancel="event.preventDefault();cancelMatchEdit()">':""}<div class="card" id="match-editor"><h2 id="match-editor-title">${editingMatch?"Edit match — "+esc(editingMatch.character)+" · "+esc(editingMatch.date):"Log a match"}</h2><p class="sub">${esc(typeof FogAccounts!=="undefined"?FogAccounts.modeNote():"Guest mode: matches are saved only in this browser.")}</p>${editingMatch?`<p class="sub">Editing ${RN[tr].toLowerCase()} match. Save changes to update this entry.</p>`:seg(tr,"setTR")}
-  <div class="row"><label>Date<input type="date" id="fd" value="${new Date().toISOString().slice(0,10)}"></label>
+  <div class="row"><label>Date<input type="date" id="fd" value="${localMatchDate()}"></label>
   ${matchNameField("fc",tr==="K"?"Your killer":"Your survivor",tr,tr==="K"?"Type a killer, e.g. clown":"Type a survivor, e.g. Meg")}
   ${tr==="S"?matchNameField("fk","Killer faced (optional)","K","e.g. clown"):""}
   ${matchNameField("fm","Map (optional)","map","Type a map name")}

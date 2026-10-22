@@ -1,0 +1,168 @@
+[
+  {
+    "Date": "10/21/26",
+    "Survivor": "Nancy",
+    "Killer": "Freddy Fazbear",
+    "Map": "Treatment Theater",
+    "Build": "Main",
+    "Outcome": "Escaped"
+  },
+  {
+    "Date": "10/21/26",
+    "Survivor": "Nancy",
+    "Killer": "Chucky",
+    "Map": "Ormond Lake Mine",
+    "Build": "Main",
+    "Outcome": "Surrendered"
+  },
+  {
+    "Date": "10/21/26",
+    "Survivor": "Nancy",
+    "Killer": "Dredge",
+    "Map": "Midwife",
+    "Build": "Main",
+    "Outcome": "Dead"
+  },
+  {
+    "Date": "10/21/26",
+    "Survivor": "Nancy",
+    "Killer": "Cannibal",
+    "Map": "Disturbed Ward",
+    "Build": "Main",
+    "Outcome": "Dead"
+  },
+  {
+    "Date": "10/21/26",
+    "Survivor": "Nancy",
+    "Killer": "Doctor",
+    "Map": "Shattered Square",
+    "Build": "Main",
+    "Outcome": "Surrendered"
+  },
+  {
+    "Date": "10/21/26",
+    "Survivor": "Nancy",
+    "Killer": "Artist",
+    "Map": "Torment Creek",
+    "Build": "Main",
+    "Outcome": "Escaped"
+  },
+  {
+    "Date": "10/21/26",
+    "Survivor": "Nancy",
+    "Killer": "Deathslinger",
+    "Map": "Trickster’s Delusion",
+    "Build": "Main",
+    "Outcome": "Escaped"
+  },
+  {
+    "Date": "10/21/26",
+    "Survivor": "Nancy",
+    "Killer": "Cannibal",
+    "Map": "Eyrie of Crows",
+    "Build": "Main",
+    "Outcome": "Died"
+  }, 
+  {
+    "Date": "10/21/26",
+    "Survivor": "Nancy",
+    "Killer": "Unknown",
+    "Map": "Gideon Meat Plant",
+    "Build": "Main",
+    "Outcome": "Escaped"
+  },
+    {
+        "Date": "10/21/26",
+        "Survivor": "Nancy",
+        "Killer": "Doctor",
+        "Map": "Dead Dawg Saloon",
+        "Build": "Main",
+        "Outcome": "Died"
+    },
+    {
+        "Date": "10/21/26",
+        "Survivor": "Nancy",
+        "Killer": "Legion",
+        "Map": "House of Joy",
+        "Build": "Main",
+        "Outcome": "Died"
+    },
+    {
+        "Date": "10/21/26",
+        "Survivor": "Nancy",
+        "Killer": "Judgement",
+        "Map": "Rancid Abattoir",
+        "Build": "Main",
+        "Outcome": "Escaped"
+    },
+    {
+        "Date": "10/21/26",
+        "Survivor": "Nancy",
+        "Killer": "Nurse",
+        "Map": "Midwich Elementary School",
+        "Build": "Main",
+        "Outcome": "Escaped"
+    },
+    {
+        "Date": "10/21/26",
+        "Survivor": "Nancy",
+        "Killer": "Hillbilly",
+        "Map": "Family Residence",
+        "Build": "Main",
+        "Outcome": "Escaped"
+    },
+    {
+        "Date": "10/21/26",
+        "Survivor": "Nancy",
+        "Killer": "Legion",
+        "Map": "church one",
+        "Build": "Main",
+        "Outcome": "Died"
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Trickster",
+        "Map": "Gideon Meat Plant",
+        "Build": "Main",
+        "Outcome": "Escaped"
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Nightmare",
+        "Map": "Freddy Fazbear's Pizza",
+        "Build": "Main",
+        "Outcome": "Escaped"
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Ghost Face",
+        "Map": "Treatment Theater",
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes": "1 Teammate died early, 1 Teammate did minimal gens, I made mistake of going right back to gen after being hooked."
+    },  
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Dredge",
+        "Map": "Dead Dawg Saloon",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Onryo",
+        "Map": "Cowshed Farmstead",
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes":""
+    }
+
+
+
+]
