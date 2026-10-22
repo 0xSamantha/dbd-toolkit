@@ -228,9 +228,9 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 #match-perk-fields{border-left:2px solid var(--blood);padding:10px;margin-bottom:12px}
 .draw{color:#e3c48d;font-weight:bold}
 
-.match-name-field{flex:1;min-width:180px}
+.match-name-field{position:relative;flex:1;min-width:180px}
 .match-name-field input{width:100%;box-sizing:border-box}
-.match-suggestions{max-height:180px;overflow:auto;margin-top:4px;border:1px solid var(--border,#555);border-radius:6px;padding:4px}
+.match-suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:20;max-height:180px;overflow-y:auto;background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:4px;box-shadow:0 8px 20px #0008}
 .match-suggestions .btn{display:block;width:100%;text-align:left;margin:2px 0;white-space:normal}
 </style>
 </head>
