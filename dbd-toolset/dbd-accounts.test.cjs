@@ -46,6 +46,29 @@ async function main(){
 
  const flush=async()=>{for(let i=0;i<20;i++){await Promise.resolve();while(tasks.length)tasks.shift()();}};
  await flush();
+ await run('FogAccounts.saveMatch({...fieldRecord,perks:["Bond"]})');
+ run('editMatch(123)');
+ assert.equal(get('#fc').value,'Meg');
+ assert.equal(get('#fm').value,'Coal Tower');
+ assert.equal(get('#fk').value,'The Clown');
+ assert.equal(run('matchPerkDraft.perks[0]'),'Bond');
+ get('#fn').value='Updated later';
+ run('cancelMatchEdit()');
+ assert.equal(run('matches.find(m=>m.id===123).notes'),'','Cancel must not mutate saved records');
+ run('editMatch(123)');
+ get('#fn').value='Updated later';get('#fm').value='Gas Heaven';
+ get('#fp').checked=true;
+ get('#match-perk-0').value='Bond';get('#match-perk-1').value='Lithe';
+ get('#match-perk-2').value='';get('#match-perk-3').value='';
+ await run('save()');
+ assert.equal(run('matches.filter(m=>m.id===123).length'),1,'Editing must update, not duplicate');
+ assert.equal(run('matches.find(m=>m.id===123).notes'),'Updated later');
+ assert.equal(run('matches.find(m=>m.id===123).map'),'Gas Heaven');
+ assert.equal(run('matches.find(m=>m.id===123).perks.join(",")'),'Bond,Lithe');
+ assert.equal(run('editingMatch'),null);
+ run('editMatch(123);matches=[];drawTrack()');
+ assert.equal(run('editingMatch'),null,'Switching logs must clear the edit target');
+ await run('FogAccounts.deleteMatch(123)');
  assert(get('#t-account').innerHTML.includes('Display name (optional, for registration)'));
  for(const role of ['S','K'])for(const result of ['Draw','Surrendered']){context.extraRecord={...record(50),role,result};assert.equal(run('FogAccounts.validateMatch(extraRecord).result'),result);}
  get('#account-form').elements.displayName.value='  Samantha  ';
