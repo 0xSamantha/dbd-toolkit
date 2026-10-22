@@ -183,4 +183,17 @@ get('#match-perk-1').value='Bond';assert.throws(()=>run('recordedMatchPerks()'),
 get('#fp').checked=false;assert.equal(run('recordedMatchPerks().length'),0);
 run('setTR("K");matchPerkDraft.enabled=true;drawMatchPerks()');
 assert(!get('#match-perk-fields').innerHTML.includes('preset:1'),'Only role-matching presets should be offered');
+assert.equal(run('matchName("clown","K")'),"The Clown");
+assert.equal(run('matchName("ONRYO","K")'),"The Onryō");
+assert.equal(run('matchName("elodie","S")'),"Élodie Rakoto");
+assert.equal(run('matchName("Meg","S")'),"Meg Thomas");
+assert.equal(run('matchName("coal tower","map")'),"Coal Tower");
+assert.equal(run('matchingNames("[.*","K").length'),44,'Search input is literal text, never executable regex');
+assert.equal(run('matchName("unknown custom map","map")'),"unknown custom map");
+assert.equal(run('matchChoices("S").length'),54);
+run('tr="S";drawTrack()');
+assert(get('#t-track').innerHTML.includes('Killer faced (optional)'));
+assert(get('#t-track').innerHTML.includes('Map (optional)'));
+run('tr="K";drawTrack()');
+assert(!get('#t-track').innerHTML.includes('Killer faced (optional)'));
 console.log(`PASS: ${checks} numeric checks; 321-perk dataset integrity; startup; search; warnings; planner/calculator parity; conditional controls and live 10.2.0 UI.`);

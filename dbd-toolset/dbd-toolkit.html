@@ -227,6 +227,11 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 .preset-panel{margin-bottom:12px;padding:8px;border:1px solid var(--edge)}
 #match-perk-fields{border-left:2px solid var(--blood);padding:10px;margin-bottom:12px}
 .draw{color:#e3c48d;font-weight:bold}
+
+.match-name-field{flex:1;min-width:180px}
+.match-name-field input{width:100%;box-sizing:border-box}
+.match-suggestions{max-height:180px;overflow:auto;margin-top:4px;border:1px solid var(--border,#555);border-radius:6px;padding:4px}
+.match-suggestions .btn{display:block;width:100%;text-align:left;margin:2px 0;white-space:normal}
 </style>
 </head>
 <body>
@@ -410,11 +415,39 @@ function drawRand(){
 }
 
 /* ===== match tracker ===== */
+// Map names: https://dbd.source.gs/maps/ (build 10.2.0); duplicate tile layouts share a name.
+const MATCH_MAPS=["Ironworks of Misery","Coal Tower","Suffocation Pit","Shelter Woods","Groaning Storehouse","The Thompson House","Torment Creek","Rancid Abattoir","Rotten Fields","Fractured Cowshed","Wretched Shop","Blood Lodge","Azarov’s Resting Place","Wreckers' Yard","Gas Heaven","Father Campbell's Chapel","Disturbed Ward","Lampkin Lane","Treatment Theater","Mother's Dwelling","The Temple of Purgation","The Pale Rose","Grim Pantry","Badham Preschool I","Badham Preschool II","Badham Preschool III","Badham Preschool IV","Badham Preschool V","The Game","Family Residence","Sanctum of Wrath","Mount Ormond Resort","Ormond Lake Mine","The Underground Complex","Dead Dawg Saloon","Midwich Elementary School","Raccoon City Police Station East Wing","Raccoon City Police Station West Wing","Eyrie of Crows","Dead Sands","Garden of Joy","Fallen Refuge","Freddy Fazbear's Pizza","Greenville Square","The Shattered Square","Forgotten Ruins","Toba Landing","Nostromo Wreckage","Trickster's Delusion"];
+const matchSearchText=value=>searchText(value).replace(/[^a-z0-9]/g,"");
+function matchChoices(kind){
+  return (kind==="map"?MATCH_MAPS:kind==="K"?KILLERS.map(n=>"The "+n):[...new Set(DBD_PERK_DATA.perks.filter(p=>p.role==="S"||p.role==="survivor").map(p=>p.meta?.owner).filter(n=>n&&n!=="General perk"))]).slice().sort((a,b)=>a.localeCompare(b));
+}
+function matchingNames(value,kind){
+  const needle=matchSearchText(value);
+  return matchChoices(kind).filter(name=>matchSearchText(name).includes(needle));
+}
+function matchName(value,kind){
+  value=value.trim();
+  if(!value)return "";
+  const key=matchSearchText(value),names=matchChoices(kind);
+  const exact=names.find(n=>matchSearchText(n)===key||(kind==="K"&&matchSearchText(n.replace(/^The /,""))===key));
+  const found=matchingNames(value,kind);
+  return exact||(found.length===1?found[0]:value);
+}
+function matchNameField(id,label,kind,placeholder){
+  return `<div class="match-name-field"><label for="${id}">${label}</label><input id="${id}" maxlength="80" autocomplete="off" placeholder="${placeholder}" aria-controls="${id}-suggestions" oninput="showMatchSuggestions('${id}','${kind}')" onfocus="showMatchSuggestions('${id}','${kind}')" onkeydown="if(event.key==='Escape')document.getElementById('${id}-suggestions').hidden=true"><div id="${id}-suggestions" class="match-suggestions" hidden aria-label="${label} suggestions"></div></div>`;
+}
+function showMatchSuggestions(id,kind){
+  const box=$("#"+id+"-suggestions"),names=matchingNames($("#"+id).value,kind);
+  box.hidden=false;
+  box.innerHTML=names.length?names.map(name=>`<button type="button" class="btn ghost" data-name="${esc(name)}" onclick="chooseMatchName('${id}',this.dataset.name)">${esc(name)}</button>`).join(""):'<small>No suggestions. You can keep your typed name.</small>';
+}
+function chooseMatchName(id,name){$("#"+id).value=name;$("#"+id).focus();$("#"+id+"-suggestions").hidden=true}
 let tr="S";
 function setTR(r){tr=r;matchPerkDraft={role:r,enabled:false,perks:[],source:""};drawTrack()}
 async function save(){
   let perks;try{perks=recordedMatchPerks()}catch(error){alert(error.message);return;}
-  const rec={id:Date.now(),date:$("#fd").value||new Date().toISOString().slice(0,10),role:tr,character:($("#fc").value||"").trim()||"Unknown",
+  const rec={id:Date.now(),date:$("#fd").value||new Date().toISOString().slice(0,10),role:tr,character:matchName($("#fc").value||"",tr)||"Unknown",
+    map:matchName($("#fm").value||"","map"),opposingKiller:tr==="S"?matchName($("#fk").value||"","K"):"",
     result:tr==="K"&&/^[0-4]$/.test($("#fr").value)?Number($("#fr").value):$("#fr").value,perks,notes:$("#fn").value.trim()};
   try{await FogAccounts.saveMatch(rec);drawTrack()}catch(error){alert("Match was not saved: "+error.message)}
 }
@@ -424,13 +457,15 @@ function exp(){$("#io").value=JSON.stringify(matches,null,1);$("#io").select()}
 function drawTrack(){
   $("#t-track").innerHTML=`${matchMetricsHTML(matches)}<div class="card"><h2>Log a match</h2><p class="sub">${esc(typeof FogAccounts!=="undefined"?FogAccounts.modeNote():"Guest mode: matches are saved only in this browser.")}</p>${seg(tr,"setTR")}
   <div class="row"><label>Date<input type="date" id="fd" value="${new Date().toISOString().slice(0,10)}"></label>
-  <label>${tr==="K"?"Killer":"Survivor"}${tr==="K"?`<select id="fc">${KILLERS.map(k=>`<option>${k}</option>`).join("")}</select>`:`<input id="fc" placeholder="e.g. Meg" maxlength="30">`}</label>
+  ${matchNameField("fc",tr==="K"?"Your killer":"Your survivor",tr,tr==="K"?"Type a killer, e.g. clown":"Type a survivor, e.g. Meg")}
+  ${tr==="S"?matchNameField("fk","Killer faced (optional)","K","e.g. clown"):""}
+  ${matchNameField("fm","Map (optional)","map","Type a map name")}
   <label>${tr==="S"?"Result":"Kills / result"}${tr==="S"?`<select id="fr"><option>Escaped</option><option>Died</option><option>Draw</option><option>Surrendered</option></select>`:`<select id="fr">${[0,1,2,3,4].map(n=>`<option>${n}</option>`).join("")}<option>Draw</option><option>Surrendered</option></select>`}</label></div>
   <label class="effect-toggle"><input type="checkbox" id="fp" ${matchPerkDraft.role===tr&&matchPerkDraft.enabled?"checked":""} aria-controls="match-perk-fields">Record perks used in this match (optional)</label><div id="match-perk-fields" hidden></div>
-  <label>Notes<textarea id="fn" maxlength="300" placeholder="Map, what went wrong, what worked"></textarea></label>
+  <label>Notes<textarea id="fn" maxlength="300" placeholder="What went wrong, what worked"></textarea></label>
   <p><button class="btn" onclick="save()">Save match</button></p></div>
   ${advancedMatchMetricsHTML(matches)}
-  <div class="card"><h2>History</h2>${matches.length?`<div class="tablewrap"><table>${matches.slice(0,30).map(m=>`<tr><td>${esc(m.date)}</td><td>${esc(m.character)}</td><td class="${matchOutcome(m)}">${esc(matchResultLabel(m))}</td><td>${esc(m.notes||"")}${m.perks?.length?`<details><summary>Perks used (${m.perks.length})</summary>${m.perks.map(n=>`<p>${esc(n)}<br><small>${esc(perkOwner(n))}</small></p>`).join("")}</details>`:""}</td><td><button class="btn ghost" onclick="del(${m.id})" aria-label="Delete match">Delete</button></td></tr>`).join("")}</table></div>`:"<p class='sub'>Nothing logged yet.</p>"}</div>
+  <div class="card"><h2>History</h2>${matches.length?`<div class="tablewrap"><table>${matches.slice(0,30).map(m=>`<tr><td>${esc(m.date)}</td><td>${esc(m.character)}${m.opposingKiller?`<br><small>Against ${esc(m.opposingKiller)}</small>`:""}${m.map?`<br><small>Map: ${esc(m.map)}</small>`:""}</td><td class="${matchOutcome(m)}">${esc(matchResultLabel(m))}</td><td>${esc(m.notes||"")}${m.perks?.length?`<details><summary>Perks used (${m.perks.length})</summary>${m.perks.map(n=>`<p>${esc(n)}<br><small>${esc(perkOwner(n))}</small></p>`).join("")}</details>`:""}</td><td><button class="btn ghost" onclick="del(${m.id})" aria-label="Delete match">Delete</button></td></tr>`).join("")}</table></div>`:"<p class='sub'>Nothing logged yet.</p>"}</div>
   <details class="card"><summary>Export or import (backup or move to another device)</summary><p class="sub">Upload a JSON array, a single match object, or an object containing a matches array. Review the preview before confirming. Screenshot recognition is not available yet. Export the currently displayed history as a backup. Import adds records by match ID to your current guest log or signed-in account; it keeps other records.</p><label>Upload match JSON<input id="match-file" type="file" accept=".json,application/json"></label><p id="match-import-status" role="status"></p><div id="match-import-preview"></div><textarea id="io" aria-label="Match data JSON"></textarea><div class="row"><button class="btn ghost" onclick="exp()">Export</button><button class="btn ghost" onclick="imp()">Preview import</button></div></details>`;
   pendingMatchImport=null;
   $("#match-file").onchange=e=>previewMatchFile(e.target.files[0]);

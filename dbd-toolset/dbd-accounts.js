@@ -11,10 +11,11 @@ const FogAccounts=(()=>{
     if(!m||!Number.isSafeInteger(m.id)||m.id<1||!['S','K'].includes(m.role)||
       typeof m.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(m.date)||
       typeof m.character!=='string'||m.character.length>80||
+      ['map','opposingKiller'].some(key=>m[key]!==undefined&&(typeof m[key]!=='string'||m[key].length>80))||
       !isValidMatchResult(m.role,m.result)||
       !Array.isArray(m.perks)||m.perks.length>4||m.perks.some(p=>typeof p!=='string'||p.length>120)||
       typeof m.notes!=='string'||m.notes.length>300)throw Error('Invalid match record. Check its date, role, result, perks and notes.');
-    return {id:m.id,date:m.date,role:m.role,character:m.character,result:m.result,perks:[...m.perks],notes:m.notes};
+    return {id:m.id,date:m.date,role:m.role,character:m.character,result:m.result,perks:[...m.perks],notes:m.notes,...(m.map!==undefined?{map:m.map}:{}),...(m.opposingKiller!==undefined?{opposingKiller:m.opposingKiller}:{})};
   }
   function modeNote(){
     if(loading)return 'Loading your private cloud matches…';

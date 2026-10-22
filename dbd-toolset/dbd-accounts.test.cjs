@@ -34,6 +34,16 @@ async function main(){
  for(const name of ['dbd-perks.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
  const inline=[...read('dbd-toolkit.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');run(inline);
  run(read('dbd-accounts.js'));
+ context.fieldRecord={...record(123),map:'Coal Tower',opposingKiller:'The Clown'};
+ assert.equal(run('FogAccounts.validateMatch(fieldRecord).map'),'Coal Tower');
+ assert.equal(run('FogAccounts.validateMatch(fieldRecord).opposingKiller'),'The Clown');
+ for(const field of ['map','opposingKiller']){
+  context.badFieldRecord={...record(123),[field]:42};
+  assert.throws(()=>run('FogAccounts.validateMatch(badFieldRecord)'),/Invalid match/);
+  context.badFieldRecord={...record(123),[field]:'x'.repeat(81)};
+  assert.throws(()=>run('FogAccounts.validateMatch(badFieldRecord)'),/Invalid match/);
+ }
+
  const flush=async()=>{for(let i=0;i<20;i++){await Promise.resolve();while(tasks.length)tasks.shift()();}};
  await flush();
  assert(get('#t-account').innerHTML.includes('Display name (optional, for registration)'));
