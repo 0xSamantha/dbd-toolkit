@@ -32,6 +32,7 @@ async function main(){
   location:{hash:''},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){}});
  const run=s=>vm.runInContext(s,context);
  for(const name of ['dbd-perks.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
+ assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=match-details-2'));
  const inline=[...read('dbd-toolkit.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');run(inline);
  run(read('dbd-accounts.js'));
  context.fieldRecord={...record(123),map:'Coal Tower',opposingKiller:'The Clown'};
@@ -106,6 +107,27 @@ async function main(){
  assert(!get('#t-account').innerHTML.includes('<Samantha>')); 
  assert.equal(get('#account-prompt').hidden,true,'Hide registration prompt for signed-in users');
  assert.equal(run('observedBuilds.length'),0,'Guest builds must not be silently uploaded');
+ // Exercise the cloud serialization and reload path, not just the in-memory form.
+ await run('FogAccounts.saveMatch({...fieldRecord,notes:"Keep these notes",perks:["Bond"]})');
+ assert.equal(rows.get('account-a:123').data.map,'Coal Tower');
+ assert.equal(rows.get('account-a:123').data.opposingKiller,'The Clown');
+ listener('SIGNED_IN',{user:current});await flush();
+ run('editMatch(123)');
+ assert.equal(get('#fm').value,'Coal Tower','Cloud reload must restore the map in the editor');
+ assert.equal(get('#fk').value,'The Clown','Cloud reload must restore the opposing killer');
+ assert.equal(get('#fn').value,'Keep these notes');
+ assert.equal(run('matchPerkDraft.perks[0]'),'Bond');
+ get('#fp').checked=true;get('#match-perk-0').value='Bond';
+ get('#match-perk-1').value='';get('#match-perk-2').value='';get('#match-perk-3').value='';
+ get('#fn').value='Only the notes changed';
+ await run('save()');
+ listener('SIGNED_IN',{user:current});await flush();
+ run('editMatch(123)');
+ assert.equal(get('#fm').value,'Coal Tower','Editing notes must preserve the map');
+ assert.equal(get('#fk').value,'The Clown','Editing notes must preserve the opposing killer');
+ assert.equal(get('#fn').value,'Only the notes changed');
+ run('cancelMatchEdit()');await run('FogAccounts.deleteMatch(123)');
+
  context.observed={...observed,id:11,player:'Account A observed'};await run('FogAccounts.saveObserved(observed)');
  assert(observedRows.has('account-a:11'));assert(!rows.has('account-a:11'));
  assert(!stored.get('fog.observedBuilds').includes('Account A observed'));
