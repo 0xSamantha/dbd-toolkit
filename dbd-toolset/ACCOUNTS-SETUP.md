@@ -29,3 +29,7 @@ References: [password authentication](https://supabase.com/docs/guides/auth/pass
 If you already ran the original setup, run **`supabase-observed-builds.sql`** once in your project's SQL Editor. It adds a separate `observed_builds` table with the same verified-email and per-user ownership protections. It does not modify or erase your `matches` records. New installations can run the updated `supabase-schema.sql`, which includes both tables.
 
 Guest observed builds use a separate browser backup (`fog.observedBuilds`). They are not uploaded automatically. In the Observed Builds tab, use **Copy guest build log into my account** after signing in to migrate your own entries. Each person's notes remain private to their account, even though they describe someone else's loadout. Test with two users before enabling the new cloud table for visitors.
+
+## Existing accounts: enable draws and surrenders
+
+Run **`supabase-match-results.sql`** once in SQL Editor. It expands the existing match validation function to accept Draw and Surrendered while retaining current numeric killer results and survivor Escaped/Died history. The tracker counts surrenders as losses. No match records or ownership policies are removed.

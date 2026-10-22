@@ -11,7 +11,7 @@ const FogAccounts=(()=>{
     if(!m||!Number.isSafeInteger(m.id)||m.id<1||!['S','K'].includes(m.role)||
       typeof m.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(m.date)||
       typeof m.character!=='string'||m.character.length>80||
-      (m.role==='S'?!['Escaped','Died'].includes(m.result):!Number.isInteger(m.result)||m.result<0||m.result>4)||
+      !isValidMatchResult(m.role,m.result)||
       !Array.isArray(m.perks)||m.perks.length>4||m.perks.some(p=>typeof p!=='string'||p.length>120)||
       typeof m.notes!=='string'||m.notes.length>300)throw Error('Invalid match record. Check its date, role, result, perks and notes.');
     return {id:m.id,date:m.date,role:m.role,character:m.character,result:m.result,perks:[...m.perks],notes:m.notes};
@@ -72,7 +72,7 @@ const FogAccounts=(()=>{
   }
   async function copyGuestObserved(){if(!user)throw Error('Sign in first to copy your guest build log.');await importObserved(store.get('fog.observedBuilds',[]));}
   async function changeSession(session){
-    const token=++epoch;user=null;matches=[];observedBuilds=[];observedEditing=null;observedReady=false;observedError='';loading=true;drawTrack();drawAccount();refreshObserved();
+    const token=++epoch;matchPerkDraft={role:tr,enabled:false,perks:[],source:''};user=null;matches=[];observedBuilds=[];observedEditing=null;observedReady=false;observedError='';loading=true;drawTrack();drawAccount();refreshObserved();
     try{
       if(!session){matches=store.get('fog.matches',[]);observedBuilds=store.get('fog.observedBuilds',[]);loading=false;drawTrack();drawAccount();refreshObserved();return;}
       const {data,error}=await client.auth.getUser();if(error)throw error;
@@ -105,6 +105,7 @@ const FogAccounts=(()=>{
     }else{matches=[...new Map([...matches,...cleaned].map(m=>[m.id,m])).values()].sort((a,b)=>b.id-a.id);store.set('fog.matches',matches);}
   }
   function drawAccount(){
+    if(typeof drawPresetManager==='function')drawPresetManager();
     const prompt=$('#account-prompt');if(prompt)prompt.hidden=!!user||loading;
     const node=$('#t-account');if(!node)return;
     const online=!!client;
@@ -157,6 +158,6 @@ const FogAccounts=(()=>{
       drawAccount();
     }catch(error){notice(error.message);}
   }
-  return {init,drawAccount,modeNote,saveMatch,deleteMatch,importMatches,validateMatch,observedMode,saveObserved,deleteObserved,importObserved,copyGuestObserved};
+  return {presetStorageKey:()=>user?'fog.presets.'+user.id:'fog.presets.guest',canManagePresets:()=>!loading&&!busy,init,drawAccount,modeNote,saveMatch,deleteMatch,importMatches,validateMatch,observedMode,saveObserved,deleteObserved,importObserved,copyGuestObserved};
 })();
 FogAccounts.init();

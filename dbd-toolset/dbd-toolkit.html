@@ -224,6 +224,9 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
   .account-prompt .btn{width:100%}
 }
 .perk-owner{display:block;color:#d4c2de;font-size:16px;font-weight:normal;line-height:1.2}
+.preset-panel{margin-bottom:12px;padding:8px;border:1px solid var(--edge)}
+#match-perk-fields{border-left:2px solid var(--blood);padding:10px;margin-bottom:12px}
+.draw{color:#e3c48d;font-weight:bold}
 </style>
 </head>
 <body>
@@ -253,6 +256,8 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 <script src="dbd-items-data.js"></script>
 <script src="dbd-items.js"></script>
 <script src="dbd-observed.js"></script>
+<script src="dbd-presets.js"></script>
+<script src="dbd-metrics.js"></script>
 <script>
 /* ===== DATA (loaded from dbd-perks.js) ===== */
 const PERKS={S:[],K:[]};
@@ -307,6 +312,7 @@ function showTab(id){
   $("#tbl").textContent=TABS.find(t=>t[0]===id)[1];
   TABS.forEach(([k])=>{$("#t-"+k).hidden=k!==id;$("#tab-"+k).setAttribute(k==="account"?"aria-pressed":"aria-selected",k===id)});
   store.set("fog.activeTab",id);
+  if(id==="track")drawMatchPerks();
   if(id==="items")drawItems();
   if(id==="observed")drawObserved();
   // Preserve build links and verification tokens while remembering this view on refresh.
@@ -361,12 +367,13 @@ function drawBuild(){
   const cat=n=>(PERKS[role].find(p=>p[0]===n)||[])[1]||"";
   $("#t-build").innerHTML=`<div class="card"><h2>Build planner</h2>${seg(role,"setRole")}
   <div class="slots">${[0,1,2,3].map(i=>build[i]?`<div class="slot full">${perkInfo(build[i])}${perkIcon(build[i])}<div>${esc(build[i])}<br><small class="perk-owner">${esc(perkOwner(build[i]))}</small><small>${esc(cat(build[i]))}</small></div><button onclick="toggle('${build[i].replace(/'/g,"\\'")}')">Remove</button></div>`:`<div class="slot"><small>Empty slot ${i+1}</small></div>`).join("")}</div>
+  <details class="preset-panel"><summary>Saved builds · up to 5 presets</summary><div id="preset-manager"></div></details>
   ${buildNotesHTML(build,role)}
   <div class="row">${role==="S"?`<button class="btn" onclick="usePlannerInCalc()">Check generator time</button>`:""}<button class="btn" onclick="share()">Copy share link</button><button class="btn ghost" onclick="build=[];drawBuild()">Clear</button></div>
   <input id="lnk" readonly hidden style="width:100%;margin-bottom:10px" aria-label="Share link">
   <input id="q" type="search" placeholder="Search perks, characters or tags" value="${esc(q)}" style="width:100%" oninput="q=this.value;drawGrid()">
   <div class="grid" id="grid"></div><div id="build-stats"></div></div>`;
-  drawGrid();drawBuildStats();
+  drawGrid();drawBuildStats();drawPresetManager();
 }
 function drawGrid(){
   const query=searchText(q);
@@ -404,39 +411,31 @@ function drawRand(){
 
 /* ===== match tracker ===== */
 let tr="S";
-function setTR(r){tr=r;drawTrack()}
+function setTR(r){tr=r;matchPerkDraft={role:r,enabled:false,perks:[],source:""};drawTrack()}
 async function save(){
+  let perks;try{perks=recordedMatchPerks()}catch(error){alert(error.message);return;}
   const rec={id:Date.now(),date:$("#fd").value||new Date().toISOString().slice(0,10),role:tr,character:($("#fc").value||"").trim()||"Unknown",
-    result:tr==="S"?$("#fr").value:Number($("#fr").value),perks:$("#fp").checked?[...build]:[],notes:$("#fn").value.trim()};
-  if(tr==="S"&&build.length&&role!=="S")rec.perks=[];
-  if(tr==="K"&&role!=="K")rec.perks=[];
+    result:tr==="K"&&/^[0-4]$/.test($("#fr").value)?Number($("#fr").value):$("#fr").value,perks,notes:$("#fn").value.trim()};
   try{await FogAccounts.saveMatch(rec);drawTrack()}catch(error){alert("Match was not saved: "+error.message)}
 }
 async function del(id){try{await FogAccounts.deleteMatch(id);drawTrack()}catch(error){alert("Could not delete match: "+error.message)}}
-async function imp(){try{await FogAccounts.importMatches(JSON.parse($("#io").value));drawTrack()}catch(error){alert("Could not import matches: "+error.message)}}
+async function imp(){try{previewMatchImport(JSON.parse($("#io").value))}catch(error){pendingMatchImport=null;$("#match-import-preview").innerHTML="";$("#match-import-status").textContent="Could not preview matches: "+error.message}}
 function exp(){$("#io").value=JSON.stringify(matches,null,1);$("#io").select()}
 function drawTrack(){
-  const S=matches.filter(m=>m.role==="S"),K=matches.filter(m=>m.role==="K");
-  const esc_=S.filter(m=>m.result==="Escaped").length,avgK=K.length?(K.reduce((a,m)=>a+Number(m.result),0)/K.length).toFixed(1):"–";
-  const by={};matches.forEach(m=>{const k=m.role+m.character;(by[k]=by[k]||{r:m.role,c:m.character,n:0,v:0});by[k].n++;by[k].v+=m.role==="S"?(m.result==="Escaped"?1:0):Number(m.result)});
-  const rows=Object.values(by).sort((a,b)=>b.n-a.n).map(x=>`<tr><td>${esc(x.c)}</td><td>${RN[x.r]}</td><td>${x.n}</td><td>${x.r==="S"?Math.round(x.v/x.n*100)+"% escaped":(x.v/x.n).toFixed(1)+" kills avg"}</td></tr>`).join("");
-  const perkUse={};matches.forEach(m=>(m.perks||[]).forEach(p=>{perkUse[p]=(perkUse[p]||0)+1}));
-  const topP=Object.entries(perkUse).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([p,n])=>`${esc(p)} (${n})`).join(", ")||"–";
-  $("#t-track").innerHTML=`<div class="card"><h2>Log a match</h2><p class="sub">${esc(typeof FogAccounts!=="undefined"?FogAccounts.modeNote():"Guest mode: matches are saved only in this browser.")}</p>${seg(tr,"setTR")}
+  $("#t-track").innerHTML=`${matchMetricsHTML(matches)}<div class="card"><h2>Log a match</h2><p class="sub">${esc(typeof FogAccounts!=="undefined"?FogAccounts.modeNote():"Guest mode: matches are saved only in this browser.")}</p>${seg(tr,"setTR")}
   <div class="row"><label>Date<input type="date" id="fd" value="${new Date().toISOString().slice(0,10)}"></label>
   <label>${tr==="K"?"Killer":"Survivor"}${tr==="K"?`<select id="fc">${KILLERS.map(k=>`<option>${k}</option>`).join("")}</select>`:`<input id="fc" placeholder="e.g. Meg" maxlength="30">`}</label>
-  <label>${tr==="S"?"Result":"Kills"}${tr==="S"?`<select id="fr"><option>Escaped</option><option>Died</option></select>`:`<select id="fr">${[0,1,2,3,4].map(n=>`<option>${n}</option>`).join("")}</select>`}</label></div>
-  <label style="flex-direction:row;align-items:center;gap:8px;margin-bottom:10px"><input type="checkbox" id="fp" ${build.length&&role===tr?"checked":""} ${build.length&&role===tr?"":"disabled"}>Attach my planner build (${build.length&&role===tr?esc(build.join(", ")):"none set for this role"})</label>
+  <label>${tr==="S"?"Result":"Kills / result"}${tr==="S"?`<select id="fr"><option>Escaped</option><option>Died</option><option>Draw</option><option>Surrendered</option></select>`:`<select id="fr">${[0,1,2,3,4].map(n=>`<option>${n}</option>`).join("")}<option>Draw</option><option>Surrendered</option></select>`}</label></div>
+  <label class="effect-toggle"><input type="checkbox" id="fp" ${matchPerkDraft.role===tr&&matchPerkDraft.enabled?"checked":""} aria-controls="match-perk-fields">Record perks used in this match (optional)</label><div id="match-perk-fields" hidden></div>
   <label>Notes<textarea id="fn" maxlength="300" placeholder="Map, what went wrong, what worked"></textarea></label>
   <p><button class="btn" onclick="save()">Save match</button></p></div>
-  <div class="card"><h2>Your stats</h2><div class="stats">
-  <div class="stat"><b>${matches.length}</b>Matches</div>
-  <div class="stat"><b>${S.length?Math.round(esc_/S.length*100)+"%":"–"}</b>Survivor escape rate</div>
-  <div class="stat"><b>${avgK}</b>Killer avg kills</div></div>
-  <p class="sub">Most-used perks: ${topP}</p>
-  ${rows?`<div class="tablewrap"><table><tr><th>Character</th><th>Role</th><th>Games</th><th>Result</th></tr>${rows}</table></div>`:"<p class='sub'>No matches yet. Log your first one above and your stats will appear here.</p>"}</div>
-  <div class="card"><h2>History</h2>${matches.length?`<div class="tablewrap"><table>${matches.slice(0,30).map(m=>`<tr><td>${esc(m.date)}</td><td>${esc(m.character)}</td><td class="${m.role==="S"?(m.result==="Escaped"?"win":"loss"):""}">${m.role==="S"?esc(m.result):m.result+" kills"}</td><td>${esc(m.notes||"")}</td><td><button class="btn ghost" onclick="del(${m.id})" aria-label="Delete match">Delete</button></td></tr>`).join("")}</table></div>`:"<p class='sub'>Nothing logged yet.</p>"}</div>
-  <details class="card"><summary>Export or import (backup or move to another device)</summary><p class="sub">Export the currently displayed history as a backup. Import adds records by match ID to your current guest log or signed-in account; it keeps other records.</p><textarea id="io" aria-label="Match data JSON"></textarea><div class="row"><button class="btn ghost" onclick="exp()">Export</button><button class="btn ghost" onclick="imp()">Import</button></div></details>`;
+  ${advancedMatchMetricsHTML(matches)}
+  <div class="card"><h2>History</h2>${matches.length?`<div class="tablewrap"><table>${matches.slice(0,30).map(m=>`<tr><td>${esc(m.date)}</td><td>${esc(m.character)}</td><td class="${matchOutcome(m)}">${esc(matchResultLabel(m))}</td><td>${esc(m.notes||"")}${m.perks?.length?`<details><summary>Perks used (${m.perks.length})</summary>${m.perks.map(n=>`<p>${esc(n)}<br><small>${esc(perkOwner(n))}</small></p>`).join("")}</details>`:""}</td><td><button class="btn ghost" onclick="del(${m.id})" aria-label="Delete match">Delete</button></td></tr>`).join("")}</table></div>`:"<p class='sub'>Nothing logged yet.</p>"}</div>
+  <details class="card"><summary>Export or import (backup or move to another device)</summary><p class="sub">Upload a JSON array, a single match object, or an object containing a matches array. Review the preview before confirming. Screenshot recognition is not available yet. Export the currently displayed history as a backup. Import adds records by match ID to your current guest log or signed-in account; it keeps other records.</p><label>Upload match JSON<input id="match-file" type="file" accept=".json,application/json"></label><p id="match-import-status" role="status"></p><div id="match-import-preview"></div><textarea id="io" aria-label="Match data JSON"></textarea><div class="row"><button class="btn ghost" onclick="exp()">Export</button><button class="btn ghost" onclick="imp()">Preview import</button></div></details>`;
+  pendingMatchImport=null;
+  $("#match-file").onchange=e=>previewMatchFile(e.target.files[0]);
+  drawMatchPerks();
+  $("#fp").onchange=e=>{matchPerkDraft.enabled=e.target.checked;drawMatchPerks()};
 }
 
 /* Generator calculator shares the planner's patch 10.2.0 rules and stacking. */

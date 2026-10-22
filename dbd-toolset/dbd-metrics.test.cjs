@@ -1,0 +1,28 @@
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
+const nodes=new Map(),get=s=>{if(!nodes.has(s))nodes.set(s,{innerHTML:'',textContent:'',disabled:false});return nodes.get(s)};
+const c=vm.createContext({$:get});
+vm.runInContext(fs.readFileSync(path.join(__dirname,'dbd-metrics.js'),'utf8'),c);
+const run=s=>vm.runInContext(s,c);
+c.records=[...['Escaped','Died','Draw','Surrendered'].map(result=>({role:'S',result})),...[0,1,2,3,4,'Draw','Surrendered'].map(result=>({role:'K',result}))];
+const stats=run('summarizeMatches(records)');
+assert.equal(stats.total,11);assert.equal(stats.wins,3);assert.equal(stats.losses,5);assert.equal(stats.draws,3);assert.equal(stats.surrenders,2);
+assert.equal(stats.kills,10);assert.equal(stats.averageKills,2);assert.equal(stats.scoredKillerMatches,5);
+assert.equal(stats.wins+stats.losses+stats.draws,stats.total);
+assert.equal(stats.escapeRate,.25);assert.equal(stats.winRate,3/11);
+assert.equal(run('summarizeMatches([]).averageKills'),null);
+assert.equal(run('summarizeMatches([{role:"K",result:"Surrendered"}]).losses'),1);
+assert.equal(run('summarizeMatches([{role:"K",result:"Surrendered"}]).averageKills'),null);
+for(const role of ['S','K'])for(const result of ['Draw','Surrendered'])assert(run(`isValidMatchResult('${role}','${result}')`));
+assert(!run('isValidMatchResult("K","4")'));assert(!run('isValidMatchResult("S",2)'));
+let imported=null;
+c.FogAccounts={validateMatch:m=>{if(!m?.id)throw Error('Invalid record');return {...m}},async importMatches(rows){imported=rows}};c.drawTrack=()=>{};
+c.parsed={matches:[{id:1,role:'S',result:'Surrendered'},{id:2,role:'K',result:2}]};
+run('previewMatchImport(parsed)');assert.equal(imported,null,'Preview must not save records');
+assert(get('#match-import-preview').innerHTML.includes('1 losses (including 1 surrenders), 1 draws'));
+get('#confirm-match-import').onclick().then(()=>{
+ assert.equal(imported.length,2);
+ run('previewMatchImport({id:3,role:"S",result:"Draw"})');assert.equal(run('pendingMatchImport.length'),1);
+ assert.throws(()=>run('previewMatchImport([{oops:1}])'),/Invalid/);
+ assert.equal(run('pendingMatchImport'),null);assert.equal(get('#match-import-preview').innerHTML,'');
+ console.log('PASS: draw/surrender classification; loss totals; rates; unknown-kill exclusion; legacy results; JSON preview/confirmation and invalid import clearing.');
+}).catch(error=>{console.error(error);process.exitCode=1});

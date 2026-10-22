@@ -31,12 +31,13 @@ async function main(){
   document:{querySelector:get,addEventListener(){},createElement:()=>({}),head:{appendChild:script=>script.onload()}},
   location:{hash:''},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){}});
  const run=s=>vm.runInContext(s,context);
- for(const name of ['dbd-perks.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js'])vm.runInContext(read(name),context);
+ for(const name of ['dbd-perks.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
  const inline=[...read('dbd-toolkit.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');run(inline);
  run(read('dbd-accounts.js'));
  const flush=async()=>{for(let i=0;i<20;i++){await Promise.resolve();while(tasks.length)tasks.shift()();}};
  await flush();
  assert(get('#t-account').innerHTML.includes('Display name (optional, for registration)'));
+ for(const role of ['S','K'])for(const result of ['Draw','Surrendered']){context.extraRecord={...record(50),role,result};assert.equal(run('FogAccounts.validateMatch(extraRecord).result'),result);}
  get('#account-form').elements.displayName.value='  Samantha  ';
  await get('#account-form').onsubmit({preventDefault(){},submitter:{dataset:{mode:'signup'}}});
  assert.equal(signupPayload.options.data.display_name,'Samantha');
@@ -48,6 +49,7 @@ async function main(){
  await get('#account-form').onsubmit({preventDefault(){},submitter:{dataset:{mode:'signup'}}});
  assert.equal(signupPayload,null);
  get('#account-form').elements.displayName.value='';
+ run('saveBuildPreset(1,"Guest build",["Bond"],"S")');
  context.record=record(1,'guest');await run('FogAccounts.saveMatch(record)');assert(stored.get('fog.matches').includes('guest'));
  await assert.rejects(run('FogAccounts.importMatches([{id:1}])'),/Invalid match/);
  run('libraryQuery="deja vu";drawLibraryResults()');assert(get('#library-results').innerHTML.includes('Déjà Vu'));
@@ -59,6 +61,8 @@ async function main(){
  assert.equal(run('matches.length'),1,'Observed records must not change own-match counts');
  await assert.rejects(run('FogAccounts.importObserved([{id:1}])'),/Check the build/);
  current={id:'account-a',email:'a@example.com',email_confirmed_at:'2026-10-20',user_metadata:{display_name:'<Samantha>'}};listener('SIGNED_IN',{user:current});await flush();
+ assert.equal(run('readPresets().length'),0,'Guest presets must not appear in account A');
+ run('saveBuildPreset(1,"A build",["Bond"],"S")');
  assert.equal(run('matches.length'),0,'Guest logs must not be silently uploaded');
  assert(get('#t-account').innerHTML.includes('&lt;Samantha&gt;'));
  assert(!get('#t-account').innerHTML.includes('<Samantha>')); 
@@ -71,10 +75,11 @@ async function main(){
  assert(!stored.get('fog.matches').includes('account A'),'Cloud rows must not enter guest storage');
  failWrites=true;context.record=record(3,'offline');await assert.rejects(run('FogAccounts.saveMatch(record)'),/Offline/);assert.equal(run('matches.length'),1);failWrites=false;
  current={id:'account-b',email:'b@example.com',email_confirmed_at:'2026-10-20'};listener('SIGNED_IN',{user:current});await flush();assert.equal(run('matches.length'),0);
+ assert.equal(run('readPresets().length'),0,'Account B must not see account A presets');
  assert.equal(run('observedBuilds.length'),0,'Account B must not see account A observed builds');
  context.observed={...observed,id:12};await run('FogAccounts.saveObserved(observed)');await run('FogAccounts.deleteObserved(12)');assert(!observedRows.has('account-b:12'));assert(observedRows.has('account-a:11'));
  context.record=record(4,'account B');await run('FogAccounts.saveMatch(record)');await run('FogAccounts.deleteMatch(4)');assert(!rows.has('account-b:4'));assert(rows.has('account-a:2'));
- current=null;listener('SIGNED_OUT',null);await flush();assert.equal(get('#account-prompt').hidden,false,'Restore registration prompt after sign-out');assert.equal(run('matches[0].notes'),'guest');assert.equal(run('observedBuilds[0].id'),10);
+ current=null;listener('SIGNED_OUT',null);await flush();assert.equal(get('#account-prompt').hidden,false,'Restore registration prompt after sign-out');assert.equal(run('readPresets()[0].name'),'Guest build');assert.equal(run('matches[0].notes'),'guest');assert.equal(run('observedBuilds[0].id'),10);
  missingObserved=true;current={id:'account-a',email:'a@example.com',email_confirmed_at:'2026-10-20'};listener('SIGNED_IN',{user:current});await flush();
  assert.equal(run('matches.length'),1,'Missing observed migration must not break own match history');
  await assert.rejects(run('FogAccounts.saveObserved(observed)'),/unavailable/);

@@ -6,7 +6,7 @@ const context=vm.createContext({});
 const read=name=>fs.readFileSync(path.join(__dirname,name),'utf8');
 vm.runInContext(read('dbd-perks.js'),context);
 vm.runInContext(read('dbd-stats.js'),context);
-for(const name of ['dbd-items-data.js','dbd-items.js','dbd-observed.js'])vm.runInContext(read(name),context);
+for(const name of ['dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
 let checks=0;
 function near(actual,expected){checks++;assert(Math.abs(actual-expected)<1e-9,`${actual} != ${expected}`)}
 function stats(names,role='S',scenario={}){
@@ -161,4 +161,26 @@ assert.equal((get('#item-inventory').innerHTML.match(/class="info item-info"/g)|
 const equippedBefore=run('JSON.stringify(itemCompare.addons)');
 get('#t-items').onclick({target:{closest:()=>null}});
 assert.equal(run('JSON.stringify(itemCompare.addons)'),equippedBefore);
+// Presets and match loadouts: five slots, role filtering, optional recording and snapshots.
+run('role="S";build=["Bond","Lithe"];saveBuildPreset(1,"Chase");');
+assert.equal(run('readPresets()[0].perks.length'),2);
+run('build.push("Hope")');assert.equal(run('readPresets()[0].perks.length'),2);
+for(let slot=2;slot<=5;slot++)run(`saveBuildPreset(${slot},"Build ${slot}",["Bond"],"S")`);
+assert.equal(run('readPresets().length'),5);
+assert.throws(()=>run('saveBuildPreset(6,"Extra")'),/1–5/);
+run('tr="S";matchPerkDraft={role:"S",enabled:false,perks:[],source:""};drawMatchPerks()');
+assert.equal(get('#match-perk-fields').hidden,true);
+get('#fp').checked=false;assert.equal(run('recordedMatchPerks().length'),0);
+run('matchPerkDraft.enabled=true;drawMatchPerks()');
+assert(get('#match-perk-fields').innerHTML.includes('Chase'));
+get('#match-build-source').onchange({target:{value:'preset:1'}});
+assert.equal(run('matchPerkDraft.perks.join("|")'),'Bond|Lithe');
+run('saveBuildPreset(1,"Changed",["Hope"],"S")');
+assert.equal(run('matchPerkDraft.perks.join("|")'),'Bond|Lithe','Selected loadouts are copies');
+get('#fp').checked=true;get('#match-perk-0').value='Bond';get('#match-perk-1').value='Lithe';get('#match-perk-2').value='';get('#match-perk-3').value='';
+assert.equal(run('recordedMatchPerks().join("|")'),'Bond|Lithe');
+get('#match-perk-1').value='Bond';assert.throws(()=>run('recordedMatchPerks()'),/different/);
+get('#fp').checked=false;assert.equal(run('recordedMatchPerks().length'),0);
+run('setTR("K");matchPerkDraft.enabled=true;drawMatchPerks()');
+assert(!get('#match-perk-fields').innerHTML.includes('preset:1'),'Only role-matching presets should be offered');
 console.log(`PASS: ${checks} numeric checks; 321-perk dataset integrity; startup; search; warnings; planner/calculator parity; conditional controls and live 10.2.0 UI.`);

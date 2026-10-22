@@ -19,9 +19,10 @@ begin
   if jsonb_typeof(doc->'character') is distinct from 'string' or length(doc->>'character') > 80 then return false; end if;
   if jsonb_typeof(doc->'notes') is distinct from 'string' or length(doc->>'notes') > 300 then return false; end if;
   if doc->>'role' = 'S' then
-    if jsonb_typeof(doc->'result') is distinct from 'string' or doc->>'result' not in ('Escaped','Died') then return false; end if;
+    if jsonb_typeof(doc->'result') is distinct from 'string' or doc->>'result' not in ('Escaped','Died','Draw','Surrendered') then return false; end if;
   elsif doc->>'role' = 'K' then
-    if jsonb_typeof(doc->'result') is distinct from 'number' or doc->>'result' not in ('0','1','2','3','4') then return false; end if;
+    if not ((jsonb_typeof(doc->'result') = 'number' and doc->>'result' in ('0','1','2','3','4')) or (jsonb_typeof(doc->'result') = 'string' and doc->>'result' in ('Draw','Surrendered'))) then return false; end if;
+    if doc->'result' = 'null'::jsonb then return false; end if;
   else return false;
   end if;
   if jsonb_typeof(doc->'perks') is distinct from 'array' then return false; end if;
