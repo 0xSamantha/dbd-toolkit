@@ -161,6 +161,205 @@
         "Build": "Main",
         "Outcome": "Died",
         "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Singularity",
+        "Map": "Farm one",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Ghost Face",
+        "Map": "House of Joy",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Skull Merchant",
+        "Map": "Family Residence",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Unknown",
+        "Map": "Mother’s Dwelling",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Blight",
+        "Map": "Midwich Elementary School",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Artist",
+        "Map": "Garden of Joy",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":"friendly killer"
+    }, 
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Cannibal",
+        "Map": "one with center building hospital looking",
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Knight",
+        "Map": "Toba's Landing",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Demogorgon",
+        "Map": "Azarov's Resting Place",
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Huntress",
+        "Map": "Gideon Meat Plant",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Huntress",
+        "Map": "Freddy Fazbear's Pizza",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Plague",
+        "Map": "Mother’s Dwelling",
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Executioner",
+        "Map": "Eyrie of Crows",
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Skull Merchant",
+        "Map": "Father Campbell's Chapel",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+    },
+    {
+        "Date": "10/22/26",
+        "Survivor": "Nancy",
+        "Killer": "Onryo",
+        "Map": "Disturbed Ward",
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes":""
+    },
+    {
+        "Date": "10/23/26",
+        "Survivor": "Nancy",
+        "Killer": "Hillbilly",
+        "Map": "Nostromo Wreckage",
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes":""
+    },
+    {
+        "Date": "10/23/26",
+        "Survivor": "Nancy",
+        "Killer": "Hag",
+        "Map": "Rancid Abattoir",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+    },
+    {
+        "Date": "10/23/26",
+        "Survivor": "Nancy",
+        "Killer": "Krasue",
+        "Map": "Toba's Landing",
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes":""
+    },
+    {
+        "Date": "10/23/26",
+        "Survivor": "Nancy",
+        "Killer": "Oni",
+        "Map": "idk",
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes":""
+    },
+    {
+        "Date": "10/23/26",
+        "Survivor": "Nancy",
+        "Killer": "Mastermind",
+        "Map": "Treatment Theater",
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes":""
+    },
+    {
+        "Date": "10/23/26",
+        "Survivor": "Nancy",
+        "Killer": "Plague",
+        "Map": "Ormond Lake Mine",
+        "Build": "Main",
+        "Outcome": "Escaped",
+        "Notes":""
+    },
+    {
+        "Date": "10/23/26",
+        "Survivor": "Nancy",
+        "Killer": "Houndmaster",
+        "Map": "Toba's Landing"`,
+        "Build": "Main",
+        "Outcome": "Died",
+        "Notes":""
     }
 
 
