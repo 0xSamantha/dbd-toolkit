@@ -511,8 +511,12 @@ function updateMatchTimer(){
   $("#match-loadout").hidden=!!draft;
   $("#match-timed-perks").textContent=draft?.perks.join(" · ")||"";
   if(!draft)return;
-  const tick=()=>{$("#match-elapsed").textContent=(running?"Elapsed · ":"Duration · ")+
-    matchDuration(Math.max(0,(draft.endedAt??Date.now())-draft.startedAt))};
+  const clock=$("#match-elapsed");
+  const tick=()=>{
+    if(running&&(document.hidden||activeToolkitTab!=="track"))return;
+    const text=(running?"Elapsed · ":"Duration · ")+matchDuration(Math.max(0,(draft.endedAt??Date.now())-draft.startedAt));
+    if(clock.textContent!==text)clock.textContent=text;
+  };
   tick();
   if(running)matchClockInterval=setInterval(tick,250);
 }
@@ -703,7 +707,7 @@ showTab(initialTab());
 </script>
 <script src="dbd-auth-config.js"></script>
 <!-- Version this URL when the stored match format changes, to avoid cached validators dropping fields. -->
-<script src="dbd-accounts.js?v=timed-match-2"></script>
+<script src="dbd-accounts.js?v=session-stability-1"></script>
 <script src="dbd-admin.js?v=1"></script>
 </body>
 </html>

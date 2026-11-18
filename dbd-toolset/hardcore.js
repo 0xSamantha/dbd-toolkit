@@ -1,5 +1,5 @@
 (() => {
-  const { outcomes, summarize } = Hardcore;
+  const { outcomes, killerOutcomes, summarize } = Hardcore;
   const config = window.FOG_AUTH_CONFIG;
   const app = document.querySelector('#app');
   const status = document.querySelector('#status');
@@ -7,21 +7,29 @@
   const params = new URLSearchParams(location.search);
   const sharedId = params.get('run');
   const overlay = sharedId !== null && params.get('view') === 'obs';
-  const draftKey = 'fog.hardcore.draft.v1';
-  const survivors = [...new Set(DBD_PERK_DATA.perks
-    .filter(perk => perk.role === 'survivor')
+  const role = params.get('role') === 'killer' ? 'killer' : 'survivor';
+  const draftKey = role === 'killer' ? 'fog.hardcore.killer.v1' : 'fog.hardcore.draft.v1';
+  const characters = [...new Set(DBD_PERK_DATA.perks
+    .filter(perk => perk.role === role)
     .map(perk => perk.meta?.owner)
     .filter(name => name && name !== 'General perk'))];
   let run, syncing = false, lastSnapshot, clockInterval;
   const perkNames = role => DBD_PERK_DATA.perks.filter(perk => perk.role === role)
     .map(perk => perk.name).sort((a, b) => a.localeCompare(b));
-  const survivorPerks = perkNames('survivor');
-  const observedPerks = [...new Set([...survivorPerks, ...perkNames('killer')])]
+  const ownPerks = perkNames(role);
+  const observedPerks = [...new Set([...perkNames('survivor'), ...perkNames('killer')])]
     .sort((a, b) => a.localeCompare(b));
 
   const escape = value => String(value ?? '').replace(/[&<>"']/g, char =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
   const initials = name => name.split(/\s+/).slice(0, 2).map(part => part[0]).join('');
+  const portrait = name => {
+    const file = Object.hasOwn(HARDCORE_PORTRAITS, name) && HARDCORE_PORTRAITS[name];
+    const src = file && `https://deadbydaylight.wiki.gg/images/thumb/${file}/128px-${file}`;
+    return `<span class="mark" aria-hidden="true">${escape(initials(name))}
+      ${src ? `<img src="${escape(src)}" alt="" width="128" height="128" loading="lazy" decoding="async"
+        onerror="this.hidden=true">` : ''}</span>`;
+  };
   const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   const setStatus = message => { status.textContent = message; };
   const shareUrl = mode => {
@@ -33,19 +41,27 @@
   const hero = (title, kicker) =>
     `<div class="hero"><span class="kicker">${kicker}</span><h1>${escape(title)}</h1></div>`;
 
+  if (sharedId === null) {
+    document.querySelector('#masthead').insertAdjacentHTML('afterend', `<nav class="role-nav" aria-label="Challenge role">
+      <a href="hardcore.html" ${role === 'survivor' ? 'aria-current="page"' : ''}>Survivor challenge</a>
+      <a href="hardcore.html?role=killer" ${role === 'killer' ? 'aria-current="page"' : ''}>Killer challenge</a></nav>`);
+  }
+
   function setup() {
+    const killer = role === 'killer';
     app.innerHTML = hero('Hardcore Challenge Tracker', 'Dead by Daylight') + `
       <form id="setup" class="panel">
         <h2>Create a run</h2>
-        <label>Run name <input name="title" required maxlength="80" value="One-life challenge"></label>
+        <label>Run name <input name="title" required maxlength="80" value="${killer ? 'Killer one-life challenge' : 'One-life challenge'}"></label>
         <fieldset><legend>Rules</legend>
-          <label class="check"><input type="checkbox" name="eliminate" checked> Death eliminates the survivor</label>
-          <label class="check"><input type="checkbox" name="clear" checked> Escape clears the survivor</label>
-          <label class="check"><input type="checkbox" name="disconnect"> Disconnect counts as a death</label>
+          <label class="check"><input type="checkbox" name="eliminate" checked> ${killer ? 'A loss eliminates the killer' : 'Death eliminates the survivor'}</label>
+          <label class="check"><input type="checkbox" name="clear" checked> ${killer ? 'A win clears the killer' : 'Escape clears the survivor'}</label>
+          <label class="check"><input type="checkbox" name="disconnect"> ${killer ? 'Disconnect counts as a loss' : 'Disconnect counts as a death'}</label>
+          ${killer ? '<p class="muted">0–1 kills is a loss, 2 is a draw, and 3–4 is a win.</p>' : ''}
         </fieldset>
-        <fieldset><legend>Choose survivors</legend>
+        <fieldset><legend>Choose ${role}s</legend>
           <div class="bar"><button type="button" id="all">Select all</button><button type="button" id="none" class="quiet">Clear selection</button></div>
-          <div class="picker">${survivors.map((name, i) =>
+          <div class="picker">${characters.map((name, i) =>
             `<label class="check"><input type="checkbox" name="roster" value="${i}" ${i < 4 ? 'checked' : ''}> ${escape(name)}</label>`).join('')}</div>
         </fieldset>
         <button class="primary">Create run</button>
@@ -59,14 +75,14 @@
     form.onsubmit = event => {
       event.preventDefault();
       const data = new FormData(form);
-      const roster = data.getAll('roster').map(index => survivors[index]);
+      const roster = data.getAll('roster').map(index => characters[index]);
       const title = data.get('title').trim();
       if (!title || !roster.length) {
-        setStatus('Enter a run name and select at least one survivor.');
+        setStatus(`Enter a run name and select at least one ${role}.`);
         return;
       }
       save({
-        id: crypto.randomUUID(), title, roster, matches: [], active: null, revision: 0,
+        id: crypto.randomUUID(), role, title, roster, matches: [], active: null, revision: 0,
         rules: { eliminate: data.has('eliminate'), clear: data.has('clear'), disconnect: data.has('disconnect') }
       });
     };
@@ -105,27 +121,34 @@
   }
 
   function render(readOnly = false, nextCharacter = '') {
-    const { roster, escapes, deaths, streak, remaining, latest } = summarize(run);
+    const { roster, escapes, deaths, streak, remaining, latest, kills } = summarize(run);
+    const killer = run.role === 'killer';
+    const roleLabel = killer ? 'Killer' : 'Survivor';
+    const resultChoices = killer ? killerOutcomes : outcomes;
+    const scores = killer ? [['Remaining', remaining], ['Wins', escapes], ['Losses', deaths], ['Win streak', streak], ['Kills', kills]]
+      : [['Remaining', remaining], ['Escapes', escapes], ['Deaths', deaths], ['Escape streak', streak]];
+    const optionalFields = killer ? { map: 'Map', vod: 'VOD timestamp' }
+      : { killer: 'Killer faced', map: 'Map', cause: 'Cause of death', vod: 'VOD timestamp' };
     const playable = run.roster.filter(name => ['Available', 'Playing'].includes(roster[name]));
     clearInterval(clockInterval);
     const timed = readOnly ? null : run.timedMatch;
     const running = timed && timed.endedAt == null;
     const logging = !readOnly && `<section class="panel logging"><h2>Log a match</h2>
-      ${!remaining ? '<p>All survivors have been cleared or eliminated.</p>' : `
+      ${!remaining ? '<p>All roster characters have been cleared or eliminated.</p>' : `
       <form id="log">
-        <label>Survivor <select name="character" required ${timed ? 'disabled' : ''}><option value="">Pick a survivor</option>
+        <label>${roleLabel} <select name="character" required ${timed ? 'disabled' : ''}><option value="">Pick a ${roleLabel.toLowerCase()}</option>
           ${playable.map(name => `<option value="${escape(name)}" ${name === (nextCharacter || run.active) ? 'selected' : ''}>${escape(name)}</option>`).join('')}</select></label>
         ${timed ? `<div class="panel match-clock"><span>${running ? 'Match in progress' : 'Match duration'}</span>
           <strong id="match-clock" role="timer"></strong></div>
           <p>${timed.perks.length ? timed.perks.map(escape).join(' · ') : 'No perks selected'}</p>
           ${running ? '<button type="button" class="primary" id="stop-match">End timer</button>' : ''}
           <button type="button" class="quiet" id="discard-timer">Discard timer</button>`
-        : `<details><summary>Your perks</summary>${perkFields('perk', survivorPerks)}</details>
+        : `<details><summary>Your perks</summary>${perkFields('perk', ownPerks)}</details>
           <button type="button" class="quiet" id="start-match">Start timer</button>`}
         ${running ? '' : `<label>Outcome <select name="outcome" required><option value="">Pick an outcome</option>
-          ${outcomes.map(outcome => `<option>${outcome}</option>`).join('')}</select></label>
+          ${resultChoices.map(outcome => `<option>${outcome}</option>`).join('')}</select></label>
         <details><summary>Optional match details</summary>
-          ${Object.entries({ killer: 'Killer', map: 'Map', cause: 'Cause of death', vod: 'VOD timestamp' })
+          ${Object.entries(optionalFields)
             .map(([key, label]) => `<label>${label}<input name="${key}" maxlength="120"></label>`).join('')}
         </details>
         <details><summary>Add observed build</summary>
@@ -140,20 +163,20 @@
         <button type="button" data-copy="live">Copy live link</button><button type="button" data-copy="obs">Copy OBS link</button></div>`
         : '<p class="muted">Sign in to publish. Anyone with the link can see the roster, match details, and builds attached to results.</p>'}
     </section>`;
-    app.innerHTML = hero(run.title, remaining ? 'Hardcore Challenge Tracker' : 'Run finished') +
-      `<div class="scores">${[['Remaining', remaining], ['Escapes', escapes], ['Deaths', deaths], ['Escape streak', streak]]
+    app.innerHTML = hero(run.title, remaining ? `Hardcore ${roleLabel} Challenge` : `${roleLabel} run finished`) +
+      `<div class="scores${killer ? ' killer-scores' : ''}">${scores
         .map(([label, value]) => `<div class="score"><strong class="number">${value}</strong><span>${label}</span></div>`).join('')}</div>
       <div class="panel latest">${latest ? `Latest · <strong>${escape(latest.character)} · ${escape(latest.outcome)}</strong>` : 'Waiting for the first match'}</div>
-      ${overlay ? '' : `<div class="layout"><section class="panel"><h2>Survivor roster</h2><div class="roster">
-        ${run.roster.map((name, i) => `<button class="tile ${roster[name].toLowerCase()}" type="button" data-survivor="${i}">
-          <span class="mark" aria-hidden="true">${escape(initials(name))}</span><strong>${escape(name)}</strong>
+      ${overlay ? '' : `<div class="layout"><section class="panel"><h2>${roleLabel} roster</h2><div class="roster">
+        ${run.roster.map((name, i) => `<button class="tile ${roster[name].toLowerCase()}" type="button" data-character="${i}">
+          ${portrait(name)}<strong>${escape(name)}</strong>
           <span class="state">${roster[name]}</span></button>`).join('')}
         </div></section>${logging || ''}</div>
         ${share || ''}<section class="panel timeline"><h2>Match timeline</h2>${matchList(run.matches)}</section>`}`;
 
-    for (const tile of app.querySelectorAll('[data-survivor]')) {
+    for (const tile of app.querySelectorAll('[data-character]')) {
       tile.onclick = () => {
-        const name = run.roster[tile.dataset.survivor];
+        const name = run.roster[tile.dataset.character];
         dialog.querySelector('h2').textContent = name;
         dialog.querySelector('#history-matches').innerHTML = matchList(run.matches.filter(match => match.character === name));
         dialog.showModal();
@@ -175,7 +198,9 @@
       if (timed) {
         const clock = form.querySelector('#match-clock');
         const update = () => {
-          clock.textContent = formatDuration((timed.endedAt ?? Date.now()) - timed.startedAt);
+          if (running && document.hidden) return;
+          const value = formatDuration((timed.endedAt ?? Date.now()) - timed.startedAt);
+          if (clock.textContent !== value) clock.textContent = value;
         };
         update();
         if (running) clockInterval = setInterval(update, 250);
@@ -196,9 +221,9 @@
         const data = new FormData(form);
         const character = timed ? run.active : data.get('character');
         const outcome = data.get('outcome');
-        if (!playable.includes(character) || !outcomes.includes(outcome)) return;
+        if (!playable.includes(character) || !resultChoices.includes(outcome)) return;
         const match = { character, outcome, at: new Date(timed?.endedAt ?? Date.now()).toISOString() };
-        for (const field of ['killer', 'map', 'cause', 'vod']) {
+        for (const field of Object.keys(optionalFields)) {
           const value = data.get(field).trim();
           if (value) match[field] = value;
         }

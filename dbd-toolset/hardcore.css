@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
 :root {
   color-scheme: dark;
@@ -10,7 +10,7 @@
   --amber: #f5c57f;
   --green: #aad4a7;
   --rust: #ffab94;
-  font: 15px/1.5 Inter, system-ui, sans-serif;
+  font: 21px/1.25 VT323, monospace;
   background: var(--bg);
   color: var(--text);
 }
@@ -20,11 +20,11 @@ main { width: min(1140px, 100% - 36px); margin: auto; padding-bottom: 40px; }
 header, .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 header { padding: 18px 0; border-bottom: 1px solid var(--edge); color: var(--muted); }
 a { color: var(--amber); }
-h1, h2, .number { font-family: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; line-height: 1; }
+h1, h2, .number { font-family: inherit; font-weight: normal; line-height: 1; }
 h1 { font-size: clamp(2.7rem, 7vw, 5rem); margin: 8px 0 14px; overflow-wrap: anywhere; }
 h2 { font-size: 2rem; margin: 0 0 16px; overflow-wrap: anywhere; }
 .hero { padding: 30px 0 22px; }
-.kicker, .state, time { font: .78rem ui-monospace, monospace; letter-spacing: .06em; }
+.kicker, .state, time { font: 1rem VT323, monospace; letter-spacing: .06em; }
 .kicker { color: var(--amber); text-transform: uppercase; }
 .panel, .score { background: var(--panel); border: 1px solid var(--edge); border-radius: 8px; padding: 20px; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .46fr); gap: 16px; align-items: start; }
@@ -38,7 +38,7 @@ h2 { font-size: 2rem; margin: 0 0 16px; overflow-wrap: anywhere; }
 .mark { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid currentColor; border-radius: 4px; font: 700 1.05rem ui-monospace, monospace; }
 .state { color: var(--muted); }
 .playing .state, .playing .mark { color: var(--amber); }
-.escaped .state, .escaped .mark { color: var(--green); }
+.escaped .state, .escaped .mark, .cleared .state, .cleared .mark { color: var(--green); }
 .eliminated .state, .eliminated .mark { color: var(--rust); }
 button, input, select { font: inherit; color: inherit; }
 button, input:not([type=checkbox]), select { padding: 10px 12px; border: 1px solid var(--edge); border-radius: 5px; background: #25231f; }
@@ -81,3 +81,13 @@ dialog form { float: right; margin-left: 12px; }
 .match-clock { display: flex; justify-content: space-between; gap: 8px; padding: 12px; }
 #match-clock { font-family: ui-monospace, monospace; color: var(--amber); }
 #start-match, #discard-timer, #stop-match { margin-bottom: 12px; }
+
+.role-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.role-nav a { border: 1px solid var(--edge); padding: 6px 12px; }
+.role-nav [aria-current="page"] { background: var(--amber); color: #24180a; }
+.mark { position: relative; overflow: hidden; width: 72px; height: 72px; background: #24211c; }
+.mark img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: inherit; }
+.killer-scores { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 600px) {
+  .killer-scores { grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); }
+}

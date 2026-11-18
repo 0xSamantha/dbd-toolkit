@@ -4,7 +4,7 @@ const record=(id,notes='')=>({id,date:'2026-10-20',role:'S',character:'Meg',resu
 async function main(){
  const nodes=new Map(),stored=new Map(),tasks=[];
  const get=s=>{if(!nodes.has(s))nodes.set(s,{innerHTML:'',textContent:'',value:'0',focus(){},setAttribute(){},elements:{email:{value:'test@example.com',checkValidity:()=>true},password:{value:'test password 123'},displayName:{value:''}}});return nodes.get(s)};
- let current=null,listener=null,failWrites=false,missingObserved=false,signupPayload=null;
+ let current=null,listener=null,failWrites=false,missingObserved=false,signupPayload=null,resetRequest=null,passwordUpdate=null,userReads=0;
  const rows=new Map(),observedRows=new Map();
  function query(table){
   const rowset=table==='matches'?rows:observedRows;
@@ -20,8 +20,10 @@ async function main(){
  }
  const client={auth:{
   onAuthStateChange(fn){listener=fn;fn('INITIAL_SESSION',null)},
-  async getUser(){return {data:{user:current},error:null}},
+  async getUser(){userReads++;return {data:{user:current},error:null}},
   async signUp(payload){signupPayload=payload;return {data:{user:null,session:null},error:null}},
+  async resetPasswordForEmail(email,options){resetRequest={email,redirectTo:options.redirectTo};return {error:null}},
+  async updateUser({password}){passwordUpdate=password;return {error:null}},
   async signOut(){current=null;listener('SIGNED_OUT',null);return {error:null}},
  },from(name){assert(['matches','observed_builds'].includes(name));const rowset=name==='matches'?rows:observedRows;return {...query(name),async upsert(payload){
    if(failWrites)return {error:Error('Offline')};
@@ -32,7 +34,7 @@ async function main(){
   location:{hash:''},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){return 1},clearInterval(){}});
  const run=s=>vm.runInContext(s,context);
  for(const name of ['dbd-perks.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
- assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=timed-match-2'));
+ assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=session-stability-1'));
  run('globalThis.dataLayer=window.dataLayer=[]');
  const inline=[...read('dbd-toolkit.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');run(inline);
  run(read('dbd-accounts.js'));
@@ -50,6 +52,23 @@ async function main(){
 
  const flush=async()=>{for(let i=0;i<20;i++){await Promise.resolve();while(tasks.length)tasks.shift()();}};
  await flush();
+ assert(get('#t-account').innerHTML.includes('Forgot password?'));
+ await get('#t-account').onclick({target:{closest:()=>({dataset:{account:'reset'}})}});
+ assert.deepEqual(resetRequest,{email:'test@example.com',redirectTo:'http://localhost:8000/dbd-toolkit.html'});
+ assert.match(get('#t-account').innerHTML,/If an account exists/);
+ current={id:'recovery-user',email:'test@example.com',email_confirmed_at:'2026-10-20'};
+ listener('PASSWORD_RECOVERY',{user:current});await flush();
+ assert.equal(get('#t-account').hidden,false);
+ assert.match(get('#t-account').innerHTML,/Choose a new password/);
+ const recoveryForm=get('#password-recovery-form');
+ recoveryForm.elements.confirmation={value:'different password'};
+ await recoveryForm.onsubmit({preventDefault(){}});
+ assert.equal(passwordUpdate,null);
+ recoveryForm.elements.confirmation.value=recoveryForm.elements.password.value;
+ await recoveryForm.onsubmit({preventDefault(){}});
+ assert.equal(passwordUpdate,recoveryForm.elements.password.value);
+ assert.match(get('#t-account').innerHTML,/Password updated/);
+ current=null;listener('SIGNED_OUT',null);await flush();
  await run('FogAccounts.saveMatch({...fieldRecord,perks:["Bond"]})');
  let editDialogOpens=0;
  get('#match-edit-dialog').showModal=()=>{editDialogOpens++};
@@ -107,7 +126,7 @@ async function main(){
  get('#account-form').elements.displayName.value='';
  await get('#account-form').onsubmit({preventDefault(){},submitter:{dataset:{mode:'signup'}}});
  assert.equal(Object.keys(signupPayload.options.data).length,0);
- get('#account-form').elements.displayName.value='x'.repeat(41);signupPayload=null;
+ get('#account-form').elements.displayName.value='x'.repeat(41);signupPayload=null,resetRequest=null,passwordUpdate=null,userReads=0;
  await get('#account-form').onsubmit({preventDefault(){},submitter:{dataset:{mode:'signup'}}});
  assert.equal(signupPayload,null);
  get('#account-form').elements.displayName.value='';
@@ -134,6 +153,7 @@ async function main(){
  await run('FogAccounts.saveMatch({...fieldRecord,notes:"Keep these notes",perks:["Bond"]})');
  assert.equal(rows.get('account-a:123').data.map,'Coal Tower');
  assert.equal(rows.get('account-a:123').data.opposingKiller,'The Clown');
+ listener('SIGNED_OUT',null);await flush();
  listener('SIGNED_IN',{user:current});await flush();
  run('editMatch(123)');
  assert.equal(get('#fm').value,'Coal Tower','Cloud reload must restore the map in the editor');
@@ -143,6 +163,12 @@ async function main(){
  get('#fp').checked=true;get('#match-perk-0').value='Bond';
  get('#match-perk-1').value='';get('#match-perk-2').value='';get('#match-perk-3').value='';
  get('#fn').value='Only the notes changed';
+ const readsBeforeFocus=userReads;
+ const editBeforeFocus=run('editingMatch');
+ listener('SIGNED_IN',{user:current});await flush();
+ assert.equal(userReads,readsBeforeFocus,'Focus event must reuse the active account');
+ assert.equal(run('editingMatch'),editBeforeFocus,'Focus event must keep the edit open');
+ assert.equal(get('#fn').value,'Only the notes changed');
  await run('save()');
  listener('SIGNED_IN',{user:current});await flush();
  run('editMatch(123)');

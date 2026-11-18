@@ -3,7 +3,8 @@
  */
 const FogAccounts=(()=>{
   let client=null,user=null,loading=false,busy=false,epoch=0,message='';
-  let observedReady=false,observedError='';
+  let sessionOwner;
+  let observedReady=false,observedError='',recoverySession=null;
   const config=window.FOG_AUTH_CONFIG||{};
   const configured=!!(config.url&&config.publishableKey&&config.redirectUrl);
   const notice=text=>{message=text;drawAccount()};
@@ -79,6 +80,10 @@ const FogAccounts=(()=>{
   }
   async function copyGuestObserved(){if(!user)throw Error('Sign in first to copy your guest build log.');await importObserved(store.get('fog.observedBuilds',[]));}
   async function changeSession(session){
+    const nextOwner=session?.user?.id??null;
+    // Supabase can emit SIGNED_IN again when the current session is confirmed on focus.
+    if(nextOwner===sessionOwner)return;
+    sessionOwner=nextOwner;
     const token=++epoch;matchPerkDraft={role:tr,enabled:false,perks:[],source:''};user=null;matches=[];observedBuilds=[];observedEditing=null;observedReady=false;observedError='';loading=true;refreshMatchTracker();drawAccount();refreshObserved();
     try{
       if(!session){matches=store.get('fog.matches',[]);observedBuilds=store.get('fog.observedBuilds',[]);loading=false;refreshMatchTracker();drawAccount();refreshObserved();return;}
@@ -131,7 +136,33 @@ const FogAccounts=(()=>{
     const displayName=typeof user?.user_metadata?.display_name==='string'?user.user_metadata.display_name.trim().slice(0,40):'';
     node.innerHTML=`<div class="card"><h2>Account</h2><p class="sub">Create an account to keep your match history private and available on your other devices.</p>
     <p role="status" aria-live="polite">${esc(message)}</p>
-    ${!configured?'<p>Online accounts are not connected yet. The planner, perk library and guest match log are available.</p>':!online?'<p>Account service is loading or unavailable. Guest features still work.</p>':user?`<p>Signed in as <b>${esc(displayName||user.email)}</b>. Email verified.${displayName?`<br><small>${esc(user.email)}</small>`:""}</p><div class="row"><button class="btn" data-account="signout">Sign out</button><button class="btn ghost" data-account="upload" ${loading||busy?'disabled':''}>Copy this browser’s guest matches into my account</button></div><p class="sub">Copying keeps the guest backup in this browser and merges records by match ID. Other users cannot see your cloud history.</p>`:`<form id="account-form"><label>Display name (optional, for registration)<input name="displayName" type="text" autocomplete="nickname" maxlength="40" placeholder="What should we call you?"></label><label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label><label>Password<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><p class="sub">Display names can be up to 40 characters and are optional. Sign in using your email. Use at least 12 characters when registering. Open the verification link in your email before signing in.</p><div class="row"><button class="btn" type="submit" data-mode="signin" ${busy?'disabled':''}>Sign in</button><button class="btn ghost" type="submit" data-mode="signup" ${busy?'disabled':''}>Register</button><button class="btn ghost" type="button" data-account="resend" ${busy?'disabled':''}>Resend verification email</button></div></form>${loading?'<button class="btn ghost" data-account="signout">Sign out / return to guest mode</button>':''}`}</div>`;
+    ${recoverySession?`<form id="password-recovery-form"><h3>Choose a new password</h3>
+    <label>New password<input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+    <label>Confirm new password<input name="confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+    <p class="sub">Use at least 12 characters.</p>
+    <button class="btn" type="submit" ${busy?'disabled':''}>Update password</button></form>`:!configured?'<p>Online accounts are not connected yet. The planner, perk library and guest match log are available.</p>':!online?'<p>Account service is loading or unavailable. Guest features still work.</p>':user?`<p>Signed in as <b>${esc(displayName||user.email)}</b>. Email verified.${displayName?`<br><small>${esc(user.email)}</small>`:""}</p><div class="row"><button class="btn" data-account="signout">Sign out</button><button class="btn ghost" data-account="upload" ${loading||busy?'disabled':''}>Copy this browser’s guest matches into my account</button></div><p class="sub">Copying keeps the guest backup in this browser and merges records by match ID. Other users cannot see your cloud history.</p>`:`<form id="account-form"><label>Display name (optional, for registration)<input name="displayName" type="text" autocomplete="nickname" maxlength="40" placeholder="What should we call you?"></label><label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label><label>Password<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><p class="sub">Display names can be up to 40 characters and are optional. Sign in using your email. Use at least 12 characters when registering. Open the verification link in your email before signing in.</p><div class="row"><button class="btn" type="submit" data-mode="signin" ${busy?'disabled':''}>Sign in</button><button class="btn ghost" type="submit" data-mode="signup" ${busy?'disabled':''}>Register</button><button class="btn ghost" type="button" data-account="resend" ${busy?'disabled':''}>Resend verification email</button><button class="btn ghost" type="button" data-account="reset" ${busy?'disabled':''}>Forgot password?</button></div></form>${loading?'<button class="btn ghost" data-account="signout">Sign out / return to guest mode</button>':''}`}</div>`;
+    const recoveryForm=$('#password-recovery-form');
+    if(recoveryForm)recoveryForm.onsubmit=async e=>{
+      e.preventDefault();
+      if(busy||!recoverySession)return;
+      const {password,confirmation}=recoveryForm.elements;
+      if(password.value.length<12){notice('Use at least 12 characters for your new password.');return;}
+      if(password.value!==confirmation.value){notice('The two passwords must match.');return;}
+      const session=recoverySession;
+      busy=true;notice('Updating password…');
+      try{
+        const {data,error:sessionError}=await client.auth.getUser();
+        if(sessionError||data.user?.id!==session.user.id||recoverySession!==session){
+          throw Error('The recovery session expired or changed. Request a new reset link.');
+        }
+        const {error}=await client.auth.updateUser({password:password.value});
+        if(error)throw error;
+        if(recoverySession!==session)return;
+        recoverySession=null;
+        message='Password updated.';
+        await changeSession(session);
+      }catch(error){notice(error.message);}finally{busy=false;drawAccount();}
+    };
     const form=$('#account-form');
     if(form)form.onsubmit=async e=>{
       e.preventDefault();if(busy)return;
@@ -145,6 +176,7 @@ const FogAccounts=(()=>{
           const {error}=await client.auth.signUp({email,password,options:{emailRedirectTo:config.redirectUrl,data:signupName?{display_name:signupName}:{}}});if(error)throw error;
           notice('If registration is available for this address, check your inbox for a verification link. After verifying, sign in.');
         }else{
+          if(loading&&!user)sessionOwner=undefined;
           const {error}=await client.auth.signInWithPassword({email,password});if(error)throw error;
           notice('Signed in. Loading your private matches…');
         }
@@ -156,6 +188,13 @@ const FogAccounts=(()=>{
       try{
         if(action==='signout'){const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;message='Signed out.';await changeSession(null);}
         if(action==='upload'){await importMatches(store.get('fog.matches',[]));notice('Guest matches copied into your account. The local backup was kept.');}
+        if(action==='reset'){
+          if(!email||!form.elements.email.checkValidity()){notice('Enter your account email, then select Forgot password again.');return;}
+          busy=true;notice('Requesting a reset link…');
+          const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:config.redirectUrl});
+          if(error)throw error;
+          notice('If an account exists for that address, check your inbox for a password reset link.');
+        }
         if(action==='resend'){
           if(!email||!form.elements.email.checkValidity())throw Error('Enter your email address first.');
           busy=true;const {error}=await client.auth.resend({type:'signup',email,options:{emailRedirectTo:config.redirectUrl}});if(error)throw error;
@@ -173,7 +212,20 @@ const FogAccounts=(()=>{
       });
       client=window.supabase.createClient(config.url,config.publishableKey,{auth:{flowType:'implicit',detectSessionInUrl:true,persistSession:true}});
       // Do not await SDK calls inside the auth listener (avoids auth-lock deadlocks).
-      client.auth.onAuthStateChange((event,session)=>{if(['INITIAL_SESSION','SIGNED_IN','SIGNED_OUT'].includes(event))setTimeout(()=>changeSession(session),0);});
+      client.auth.onAuthStateChange((event,session)=>{
+        if(event==='PASSWORD_RECOVERY'&&session){
+          recoverySession=session;
+          sessionOwner=undefined;
+          epoch++;
+          message='';
+          setTimeout(()=>{showTab('account');drawAccount();},0);
+          return;
+        }
+        if(event==='SIGNED_OUT'||(event==='SIGNED_IN'&&session?.user?.id!==recoverySession?.user?.id))recoverySession=null;
+        if(['INITIAL_SESSION','SIGNED_IN','SIGNED_OUT'].includes(event)){
+          setTimeout(()=>{if(!recoverySession)changeSession(session);},0);
+        }
+      });
       drawAccount();
     }catch(error){notice(error.message);}
   }
