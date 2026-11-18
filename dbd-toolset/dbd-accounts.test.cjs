@@ -1,8 +1,9 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
+const {transferKey,toGeneralMatch}=require('./hardcore-model.js');
 const read=n=>fs.readFileSync(path.join(__dirname,n),'utf8');
 const record=(id,notes='')=>({id,date:'2026-10-20',role:'S',character:'Meg',result:'Escaped',perks:[],notes});
 async function main(){
- const nodes=new Map(),stored=new Map(),tasks=[];
+ const nodes=new Map(),stored=new Map(),session=new Map(),tasks=[];
  const get=s=>{if(!nodes.has(s))nodes.set(s,{innerHTML:'',textContent:'',value:'0',focus(){},setAttribute(){},elements:{email:{value:'test@example.com',checkValidity:()=>true},password:{value:'test password 123'},displayName:{value:''}}});return nodes.get(s)};
  let current=null,listener=null,failWrites=false,missingObserved=false,signupPayload=null,resetRequest=null,passwordUpdate=null,userReads=0;
  const rows=new Map(),observedRows=new Map();
@@ -25,16 +26,21 @@ async function main(){
   async resetPasswordForEmail(email,options){resetRequest={email,redirectTo:options.redirectTo};return {error:null}},
   async updateUser({password}){passwordUpdate=password;return {error:null}},
   async signOut(){current=null;listener('SIGNED_OUT',null);return {error:null}},
- },from(name){assert(['matches','observed_builds'].includes(name));const rowset=name==='matches'?rows:observedRows;return {...query(name),async upsert(payload){
+ },from(name){assert(['matches','observed_builds'].includes(name));const rowset=name==='matches'?rows:observedRows;return {...query(name),async insert(row){
+   assert.equal(row.user_id,current.id);
+   const key=row.user_id+':'+row.id;
+   if(rowset.has(key))return {error:Error('Duplicate ID')};
+   rowset.set(key,row);return {error:null};
+ },async upsert(payload){
    if(failWrites)return {error:Error('Offline')};
    for(const row of Array.isArray(payload)?payload:[payload]){assert.equal(row.user_id,current.id);rowset.set(row.user_id+':'+row.id,row)}return {error:null};
  }}}};
  const context=vm.createContext({console,setTimeout:fn=>tasks.push(fn),window:{addEventListener(){},FOG_AUTH_CONFIG:{url:'https://test.supabase.co',publishableKey:'sb_publishable_test',redirectUrl:'http://localhost:8000/dbd-toolkit.html'},supabase:{createClient:()=>client}},
   document:{querySelector:get,addEventListener(){},createElement:()=>({}),head:{appendChild:script=>script.onload()}},
-  location:{hash:''},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){return 1},clearInterval(){}});
+  location:{hash:''},sessionStorage:{getItem:k=>session.get(k)||null,removeItem:k=>session.delete(k)},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){return 1},clearInterval(){}});
  const run=s=>vm.runInContext(s,context);
  for(const name of ['dbd-perks.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
- assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=session-stability-1'));
+ assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=hardcore-transfer-1'));
  run('globalThis.dataLayer=window.dataLayer=[]');
  const inline=[...read('dbd-toolkit.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');run(inline);
  run(read('dbd-accounts.js'));
@@ -149,6 +155,28 @@ async function main(){
  assert(!get('#t-account').innerHTML.includes('<Samantha>')); 
  assert.equal(get('#account-prompt').hidden,true,'Hide registration prompt for signed-in users');
  assert.equal(run('observedBuilds.length'),0,'Guest builds must not be silently uploaded');
+ const hardcoreRecord=toGeneralMatch({
+  id:'08a4ee31-5f37-4261-be37-eaa9dd623158',title:'One-life challenge',
+  matches:[{at:'2026-10-22T12:00:00Z',character:'Meg Thomas',outcome:'Sacrificed',queue:'team',
+    killer:'The Trapper',map:'Coal Tower',perks:['Bond'],durationMs:42000,cause:'Hook'}]
+ },0);
+ session.set(transferKey,JSON.stringify(hardcoreRecord));
+ get('input[name="hardcore-transfer-queue"]:checked').value='team';
+ await run('saveHardcoreMatch({disabled:false})');
+ const importedHardcore=rows.get('account-a:'+hardcoreRecord.id).data;
+ assert.equal(importedHardcore.result,'Died');
+ assert.equal(importedHardcore.queue,'team');
+ assert.equal(importedHardcore.durationMs,42000);
+ assert.match(importedHardcore.notes,/Sacrificed/);
+ assert.equal(session.has(transferKey),false);
+ session.set(transferKey,JSON.stringify(hardcoreRecord));
+ await run('saveHardcoreMatch({disabled:false})');
+ assert.match(get('#hardcore-transfer-status').textContent,/already/);
+ session.delete(transferKey);
+ run(`editMatch(${hardcoreRecord.id})`);
+ assert.match(get('#t-track').innerHTML,/name="match-queue" value="team"\s+checked/);
+ run('cancelMatchEdit()');
+ await run(`FogAccounts.deleteMatch(${hardcoreRecord.id})`);
  // Exercise the cloud serialization and reload path, not just the in-memory form.
  await run('FogAccounts.saveMatch({...fieldRecord,notes:"Keep these notes",perks:["Bond"]})');
  assert.equal(rows.get('account-a:123').data.map,'Coal Tower');

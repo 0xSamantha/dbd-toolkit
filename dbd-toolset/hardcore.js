@@ -1,5 +1,5 @@
 (() => {
-  const { outcomes, killerOutcomes, summarize } = Hardcore;
+  const { outcomes, killerOutcomes, summarize, transferKey, toGeneralMatch } = Hardcore;
   const config = window.FOG_AUTH_CONFIG;
   const app = document.querySelector('#app');
   const status = document.querySelector('#status');
@@ -103,10 +103,11 @@
     return [...new Set(data.getAll(key).map(perk => perk.trim()).filter(Boolean))];
   }
 
-  function matchList(matches) {
+  function matchList(matches, canTransfer = false) {
     if (!matches.length) return '<p class="muted">No matches logged yet.</p>';
     return `<ol class="matches" reversed>${matches.slice().reverse().map(match => {
-      const details = [match.killer, match.map, match.cause, match.vod && 'VOD ' + match.vod,
+      const queue = { solo: 'Solo queue', team: 'Team / duo' }[match.queue];
+      const details = [queue, match.killer, match.map, match.cause, match.vod && 'VOD ' + match.vod,
         Number.isFinite(match.durationMs) && formatDuration(match.durationMs)]
         .filter(Boolean).map(escape).join(' · ');
       const timestamp = new Date(match.at);
@@ -116,7 +117,8 @@
         ${details ? '<br><span class="muted">' + details + '</span>' : ''}
         ${match.perks?.length ? `<br>Your perks · ${match.perks.map(escape).join(', ')}` : ''}
         ${match.observed ? `<br>Observed build · ${[match.observed.character, ...match.observed.perks]
-          .filter(Boolean).map(escape).join(' · ')}` : ''}</li>`;
+          .filter(Boolean).map(escape).join(' · ')}` : ''}
+        ${canTransfer ? `<br><button type="button" class="quiet" data-transfer="${run.matches.indexOf(match)}">Add to Match Tracker</button>` : ''}</li>`;
     }).join('')}</ol>`;
   }
 
@@ -147,6 +149,11 @@
           <button type="button" class="quiet" id="start-match">Start timer</button>`}
         ${running ? '' : `<label>Outcome <select name="outcome" required><option value="">Pick an outcome</option>
           ${resultChoices.map(outcome => `<option>${outcome}</option>`).join('')}</select></label>
+        <fieldset class="queue-options"><legend>Queue (optional)</legend>
+          <label class="check"><input type="radio" name="queue" value="" checked> Unspecified</label>
+          <label class="check"><input type="radio" name="queue" value="solo"> Solo queue</label>
+          <label class="check"><input type="radio" name="queue" value="team"> Team / duo</label>
+        </fieldset>
         <details><summary>Optional match details</summary>
           ${Object.entries(optionalFields)
             .map(([key, label]) => `<label>${label}<input name="${key}" maxlength="120"></label>`).join('')}
@@ -172,13 +179,13 @@
           ${portrait(name)}<strong>${escape(name)}</strong>
           <span class="state">${roster[name]}</span></button>`).join('')}
         </div></section>${logging || ''}</div>
-        ${share || ''}<section class="panel timeline"><h2>Match timeline</h2>${matchList(run.matches)}</section>`}`;
+        ${share || ''}<section class="panel timeline"><h2>Match timeline</h2>${matchList(run.matches, !readOnly)}</section>`}`;
 
     for (const tile of app.querySelectorAll('[data-character]')) {
       tile.onclick = () => {
         const name = run.roster[tile.dataset.character];
         dialog.querySelector('h2').textContent = name;
-        dialog.querySelector('#history-matches').innerHTML = matchList(run.matches.filter(match => match.character === name));
+        dialog.querySelector('#history-matches').innerHTML = matchList(run.matches.filter(match => match.character === name), !readOnly);
         dialog.showModal();
       };
     }
@@ -227,6 +234,8 @@
           const value = data.get(field).trim();
           if (value) match[field] = value;
         }
+        const queue = data.get('queue');
+        if (queue === 'solo' || queue === 'team') match.queue = queue;
         const perks = timed?.perks ?? selectedPerks(data, 'perk');
         if (perks.length) match.perks = perks;
         if (timed) {
@@ -256,6 +265,17 @@
       };
     }
   }
+
+  document.addEventListener('click', event => {
+    const button = event.target.closest('[data-transfer]');
+    if (!button || sharedId !== null) return;
+    try {
+      sessionStorage.setItem(transferKey, JSON.stringify(toGeneralMatch(run, Number(button.dataset.transfer))));
+      location.assign('dbd-toolkit.html?tab=track');
+    } catch {
+      setStatus('Could not open the match in Match Tracker. Check your browser storage settings.');
+    }
+  });
 
   function save(next, loggedCharacter, selectedCharacter = loggedCharacter, publish = true) {
     try {

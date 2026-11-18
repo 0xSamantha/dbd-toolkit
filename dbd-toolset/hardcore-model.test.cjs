@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { summarize } = require('./hardcore-model.js');
+const { summarize, toGeneralMatch } = require('./hardcore-model.js');
 
 test('one-life rules derive roster state and the scoreboard from logged matches', () => {
   const run = {
@@ -48,4 +48,19 @@ test('killer one-life rules clear wins, eliminate losses, and break streaks on d
   });
   assert.equal(summarize({ ...run, rules: { ...run.rules, disconnect: true } }).remaining, 0);
   assert.equal(summarize({ ...run, matches: run.matches.slice(0, 2) }).streak, 0);
+});
+
+test('killer transfers keep kill counts and leave disconnect results for the user to classify', () => {
+  const run = {
+    role: 'killer', title: 'Killer one-life', id: '08a4ee31-5f37-4261-be37-eaa9dd623158',
+    matches: [
+      { character: 'The Trapper', outcome: '2 kills', at: '2026-10-22T12:00:00Z', queue: 'solo' },
+      { character: 'The Wraith', outcome: 'Disconnected', at: '2026-10-22T12:15:00Z' }
+    ]
+  };
+  assert.equal(toGeneralMatch(run, 0).result, 2);
+  assert.equal(toGeneralMatch(run, 0).role, 'K');
+  assert.equal(toGeneralMatch(run, 0).queue, 'solo');
+  assert.equal(toGeneralMatch(run, 1).result, null);
+  assert.match(toGeneralMatch(run, 1).notes, /Disconnected/);
 });

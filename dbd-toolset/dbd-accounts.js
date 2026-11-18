@@ -13,6 +13,8 @@ const FogAccounts=(()=>{
       typeof m.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(m.date)||
       typeof m.character!=='string'||m.character.length>80||
       ['map','opposingKiller'].some(key=>m[key]!==undefined&&(typeof m[key]!=='string'||m[key].length>80))||
+      (m.queue!==undefined&&!['solo','team'].includes(m.queue))||
+      (m.hardcoreSource!==undefined&&(typeof m.hardcoreSource!=='string'||!/^[0-9a-f-]{36}:\d+$/i.test(m.hardcoreSource)))||
       (m.durationMs!==undefined&&(!Number.isSafeInteger(m.durationMs)||m.durationMs<0))||
       (m.observed!==undefined&&(!m.observed||typeof m.observed.character!=='string'||m.observed.character.length>80||
         !Array.isArray(m.observed.perks)||m.observed.perks.length>4||
@@ -21,6 +23,8 @@ const FogAccounts=(()=>{
       !Array.isArray(m.perks)||m.perks.length>4||m.perks.some(p=>typeof p!=='string'||p.length>120)||
       typeof m.notes!=='string'||m.notes.length>300)throw Error('Invalid match record. Check its date, role, result, perks and notes.');
     return {id:m.id,date:m.date,role:m.role,character:m.character,result:m.result,perks:[...m.perks],notes:m.notes,...(m.map!==undefined?{map:m.map}:{}),...(m.opposingKiller!==undefined?{opposingKiller:m.opposingKiller}:{}),
+      ...(m.queue!==undefined?{queue:m.queue}:{}),
+      ...(m.hardcoreSource!==undefined?{hardcoreSource:m.hardcoreSource}:{}),
       ...(m.durationMs!==undefined?{durationMs:m.durationMs}:{}),
       ...(m.observed?{observed:{character:m.observed.character,perks:[...m.observed.perks]}}:{})};
   }
@@ -93,11 +97,20 @@ const FogAccounts=(()=>{
       user=data.user;await loadMatches(token,user.id);if(token===epoch)await loadObserved(token,user.id);
     }catch(error){if(token===epoch){user=null;matches=[];loading=true;notice('Could not load your account: '+error.message+' Sign out to return to guest mode.');refreshMatchTracker();}}
   }
-  async function saveMatch(record){
+  async function saveMatch(record, { newOnly = false } = {}){
     requireReady();const rec=validateMatch(record),owner=user?.id,token=epoch;
-    if(owner){const {error}=await client.from('matches').upsert({user_id:owner,id:rec.id,data:rec},{onConflict:'user_id,id'});if(error)throw error;}
+    if(newOnly&&configured&&sessionOwner===undefined)throw Error('Wait for the account service to finish loading.');
+    const history=newOnly&&!owner?store.get('fog.matches',[]):matches;
+    if(newOnly&&history.some(m=>m.id===rec.id||m.hardcoreSource===rec.hardcoreSource)){
+      throw Error('This Hardcore match is already in this history.');
+    }
+    if(owner){
+      const row={user_id:owner,id:rec.id,data:rec},table=client.from('matches');
+      const {error}=await (newOnly?table.insert(row):table.upsert(row,{onConflict:'user_id,id'}));
+      if(error)throw error;
+    }
     if(token!==epoch)throw Error('Account changed. Reopen your account before saving again.');
-    matches=[rec,...matches.filter(m=>m.id!==rec.id)];
+    matches=[rec,...(newOnly?history:matches).filter(m=>m.id!==rec.id)];
     if(!owner)store.set('fog.matches',matches);
   }
   async function deleteMatch(id){

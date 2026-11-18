@@ -546,6 +546,63 @@ function discardGeneralTimer(){
   updateMatchTimer();
   $("#match-start").focus({preventScroll:true});
 }
+const matchQueueLabels={solo:"Solo queue",team:"Team / duo"};
+const hardcoreTransferKey="fog.hardcore.match-transfer";
+function matchQueueFields(name,selected){
+  return `<fieldset><legend>Queue (optional)</legend><div class="row">${[["","Unspecified"],...Object.entries(matchQueueLabels)]
+    .map(([value,label])=>`<label class="effect-toggle"><input type="radio" name="${name}" value="${value}"
+      ${(selected||"")===value?"checked":""}> ${label}</label>`).join("")}</div></fieldset>`;
+}
+function matchQueueValue(name){
+  const value=$(`input[name="${name}"]:checked`)?.value;
+  return Object.hasOwn(matchQueueLabels,value)?value:undefined;
+}
+function pendingHardcoreMatch(){
+  try{return JSON.parse(sessionStorage.getItem(hardcoreTransferKey));}catch{return null;}
+}
+function clearHardcoreMatch(){
+  sessionStorage.removeItem(hardcoreTransferKey);
+  drawTrack();
+}
+function hardcoreTransferCard(record){
+  if(!record)return "";
+  const duplicate=matches.some(match=>match.hardcoreSource===record.hardcoreSource);
+  const outcome=record.result===null?"Disconnected":typeof record.result==="number"?
+    record.result+" "+(record.result===1?"kill":"kills"):record.result;
+  return `<section class="card" aria-labelledby="hardcore-transfer-title">
+    <h2 id="hardcore-transfer-title">Add Hardcore match</h2>
+    <p>${esc([record.date,record.character,outcome].join(" · "))}</p>
+    ${duplicate?"<p>This match is already in this history.</p>":`
+      <p class="sub">${esc(typeof FogAccounts==="undefined"?"Checking match history…":FogAccounts.modeNote())}</p>
+      ${record.result===null?`<label>Result for this disconnect <select id="hardcore-transfer-result">
+        <option value="">Choose a result</option><option>Surrendered</option><option>Draw</option>
+      </select></label>`:""}
+      ${matchQueueFields("hardcore-transfer-queue",record.queue)}
+      <button type="button" class="btn" onclick="saveHardcoreMatch(this)">Save to match history</button>`}
+    <button type="button" class="btn ghost" onclick="clearHardcoreMatch()">Dismiss</button>
+    <a class="btn ghost" href="hardcore.html${record.role==="K"?"?role=killer":""}">Back to Hardcore</a>
+    <p id="hardcore-transfer-status" role="status"></p>
+  </section>`;
+}
+async function saveHardcoreMatch(button){
+  const record=pendingHardcoreMatch();
+  if(!record||button.disabled)return;
+  if(record.result===null){
+    record.result=$("#hardcore-transfer-result").value;
+    if(!record.result){$("#hardcore-transfer-status").textContent="Choose a result for the disconnect.";return;}
+  }
+  record.queue=matchQueueValue("hardcore-transfer-queue");
+  // Keep the original date without overwriting a different entry logged in the same millisecond.
+  while(matches.some(match=>match.id===record.id&&match.hardcoreSource!==record.hardcoreSource))record.id++;
+  button.disabled=true;
+  try{
+    await FogAccounts.saveMatch(record,{newOnly:true});
+    sessionStorage.removeItem(hardcoreTransferKey);
+    drawTrack();
+    $("#match-history-status").textContent="Hardcore match added to history.";
+  }catch(error){$("#hardcore-transfer-status").textContent=error.message;}
+  finally{button.disabled=false;}
+}
 function observedMatchFields(observed){
   const options=[...new Set([...PERKS.S,...PERKS.K].map(perk=>perk[0]))].sort((a,b)=>a.localeCompare(b));
   return `<details ${observed?"open":""}><summary>Add observed build</summary>
@@ -575,6 +632,9 @@ async function save(){
   const rec={id:editingMatch?.id||draft?.startedAt||Date.now(),date:draft?.date||$("#fd").value||localMatchDate(),role:tr,character:draft?.character||matchName($("#fc").value||"",tr)||"Unknown",
     map:matchName($("#fm").value||"","map"),opposingKiller:tr==="S"?matchName($("#fk").value||"","K"):"",
     result:tr==="K"&&/^[0-4]$/.test($("#fr").value)?Number($("#fr").value):$("#fr").value,perks,notes:$("#fn").value.trim()};
+  const queue=matchQueueValue("match-queue");
+  if(queue)rec.queue=queue;
+  if(editingMatch?.hardcoreSource)rec.hardcoreSource=editingMatch.hardcoreSource;
   const durationMs=draft?Math.max(0,draft.endedAt-draft.startedAt):editingMatch?.durationMs;
   if(durationMs!==undefined)rec.durationMs=durationMs;
   const observed={character:$("#match-observed-character").value.trim(),perks:[...new Set(
@@ -603,7 +663,8 @@ function drawTrack(){
     tr=timerDraft.role;
     matchPerkDraft={role:tr,enabled:!!timerDraft.perks.length,perks:[...timerDraft.perks],source:""};
   }
-  $("#t-track").innerHTML=`${editingMatch?'<dialog id="match-edit-dialog" aria-labelledby="match-editor-title" oncancel="event.preventDefault();cancelMatchEdit()">':""}<div class="card" id="match-editor"><h2 id="match-editor-title">${editingMatch?"Edit match — "+esc(editingMatch.character)+" · "+esc(editingMatch.date):"Log a match"}</h2><p class="sub">${esc(typeof FogAccounts!=="undefined"?FogAccounts.modeNote():"Guest mode: matches are saved only in this browser.")}</p>${editingMatch?`<p class="sub">Editing ${RN[tr].toLowerCase()} match. Save changes to update this entry.</p>`:`<div id="match-role">${seg(tr,"setTR")}</div>`}
+  $("#t-track").innerHTML=`${hardcoreTransferCard(pendingHardcoreMatch())}${editingMatch?'<dialog id="match-edit-dialog" aria-labelledby="match-editor-title" oncancel="event.preventDefault();cancelMatchEdit()">':""}<div class="card" id="match-editor"><h2 id="match-editor-title">${editingMatch?"Edit match — "+esc(editingMatch.character)+" · "+esc(editingMatch.date):"Log a match"}</h2><p class="sub">${esc(typeof FogAccounts!=="undefined"?FogAccounts.modeNote():"Guest mode: matches are saved only in this browser.")}</p>${editingMatch?`<p class="sub">Editing ${RN[tr].toLowerCase()} match. Save changes to update this entry.</p>`:`<div id="match-role">${seg(tr,"setTR")}</div>`}
+  <p id="match-history-status" role="status"></p>
   <div class="row"><label>Date<input type="date" id="fd" value="${localMatchDate()}"></label>
   ${matchNameField("fc",tr==="K"?"Your killer":"Your survivor",tr,tr==="K"?"Type a killer, e.g. clown":"Type a survivor, e.g. Meg")}
   </div>
@@ -620,12 +681,13 @@ function drawTrack(){
   ${tr==="S"?matchNameField("fk","Killer faced (optional)","K","e.g. clown"):""}
   ${matchNameField("fm","Map (optional)","map","Type a map name")}
   <label>${tr==="S"?"Result":"Kills / result"}${tr==="S"?`<select id="fr"><option>Escaped</option><option>Died</option><option>Draw</option><option>Surrendered</option></select>`:`<select id="fr">${[0,1,2,3,4].map(n=>`<option>${n}</option>`).join("")}<option>Draw</option><option>Surrendered</option></select>`}</label></div>
+  ${matchQueueFields("match-queue",editingMatch?.queue)}
   <label>Notes<textarea id="fn" maxlength="300" placeholder="What went wrong, what worked"></textarea></label>
   ${observedMatchFields(editingMatch?.observed)}
   <p><button class="btn" id="match-save" onclick="save()">${editingMatch?"Save changes":"Save match"}</button> ${editingMatch?'<button class="btn ghost" onclick="cancelMatchEdit()">Cancel</button>':""}</p></div></div>${editingMatch?"</dialog>":""}
   ${matchMetricsHTML(matches)}
   ${advancedMatchMetricsHTML(matches)}
-  <div class="card"><h2>History</h2>${matches.length?`<div class="tablewrap"><table>${matches.slice(0,30).map(m=>`<tr><td>${esc(m.date)}</td><td>${esc(m.character)}${m.opposingKiller?`<br><small>Against ${esc(m.opposingKiller)}</small>`:""}${m.map?`<br><small>Map: ${esc(m.map)}</small>`:""}</td><td class="${matchOutcome(m)}">${esc(matchResultLabel(m))}${m.durationMs!==undefined?`<br><small>${matchDuration(m.durationMs)}</small>`:""}</td><td>${esc(m.notes||"")}${m.perks?.length?`<details><summary>Perks used (${m.perks.length})</summary>${m.perks.map(n=>`<p>${esc(n)}<br><small>${esc(perkOwner(n))}</small></p>`).join("")}</details>`:""}${m.observed?`<details><summary>Observed build</summary><p>${esc([m.observed.character,...m.observed.perks].filter(Boolean).join(" · "))}</p></details>`:""}</td><td><button class="btn ghost" onclick="editMatch(${m.id})" aria-label="Edit match">Edit</button> <button class="btn ghost" onclick="del(${m.id})" aria-label="Delete match">Delete</button></td></tr>`).join("")}</table></div>`:"<p class='sub'>Nothing logged yet.</p>"}</div>
+  <div class="card"><h2>History</h2>${matches.length?`<div class="tablewrap"><table>${matches.slice(0,30).map(m=>`<tr><td>${esc(m.date)}</td><td>${esc(m.character)}${m.opposingKiller?`<br><small>Against ${esc(m.opposingKiller)}</small>`:""}${m.map?`<br><small>Map: ${esc(m.map)}</small>`:""}</td><td class="${matchOutcome(m)}">${esc(matchResultLabel(m))}${m.durationMs!==undefined?`<br><small>${matchDuration(m.durationMs)}</small>`:""}${Object.hasOwn(matchQueueLabels,m.queue)?`<br><small>${matchQueueLabels[m.queue]}</small>`:""}</td><td>${esc(m.notes||"")}${m.perks?.length?`<details><summary>Perks used (${m.perks.length})</summary>${m.perks.map(n=>`<p>${esc(n)}<br><small>${esc(perkOwner(n))}</small></p>`).join("")}</details>`:""}${m.observed?`<details><summary>Observed build</summary><p>${esc([m.observed.character,...m.observed.perks].filter(Boolean).join(" · "))}</p></details>`:""}</td><td><button class="btn ghost" onclick="editMatch(${m.id})" aria-label="Edit match">Edit</button> <button class="btn ghost" onclick="del(${m.id})" aria-label="Delete match">Delete</button></td></tr>`).join("")}</table></div>`:"<p class='sub'>Nothing logged yet.</p>"}</div>
   <details class="card"><summary>Export or import (backup or move to another device)</summary><p class="sub">Upload a JSON array, a single match object, or an object containing a matches array. Review the preview before confirming. Screenshot recognition is not available yet. Export the currently displayed history as a backup. Import adds records by match ID to your current guest log or signed-in account; it keeps other records.</p><label>Upload match JSON<input id="match-file" type="file" accept=".json,application/json"></label><p id="match-import-status" role="status"></p><div id="match-import-preview"></div><textarea id="io" aria-label="Match data JSON"></textarea><div class="row"><button class="btn ghost" onclick="exp()">Export</button><button class="btn ghost" onclick="imp()">Preview import</button></div></details>`;
   if(editingMatch){
     $("#fd").value=editingMatch.date;$("#fc").value=editingMatch.character;
@@ -707,7 +769,7 @@ showTab(initialTab());
 </script>
 <script src="dbd-auth-config.js"></script>
 <!-- Version this URL when the stored match format changes, to avoid cached validators dropping fields. -->
-<script src="dbd-accounts.js?v=session-stability-1"></script>
+<script src="dbd-accounts.js?v=hardcore-transfer-1"></script>
 <script src="dbd-admin.js?v=1"></script>
 </body>
 </html>

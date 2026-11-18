@@ -26,7 +26,31 @@
     const remaining = Object.values(roster).filter(state => state === 'Available' || state === 'Playing').length;
     return { roster, escapes, deaths, streak, remaining, latest: run.matches.at(-1), ...(killer ? { kills } : {}) };
   }
-  const model = { outcomes, killerOutcomes, summarize };
+  const transferKey = 'fog.hardcore.match-transfer';
+  function toGeneralMatch(run, index) {
+    const match = run.matches[index];
+    const at = new Date(match.at);
+    const date = [at.getFullYear(), String(at.getMonth() + 1).padStart(2, '0'), String(at.getDate()).padStart(2, '0')].join('-');
+    const killer = run.role === 'killer';
+    const disconnected = match.outcome === 'Disconnected';
+    const result = disconnected ? null : killer ? killerOutcomes.indexOf(match.outcome) :
+      match.outcome === 'Escaped' ? 'Escaped' : 'Died';
+    const notes = [
+      'Hardcore: ' + run.title,
+      match.outcome !== 'Escaped' && !killer && 'Outcome: ' + match.outcome,
+      disconnected && killer && 'Outcome: Disconnected',
+      match.cause && 'Cause: ' + match.cause,
+      match.vod && 'VOD: ' + match.vod
+    ].filter(Boolean).join(' · ').slice(0, 300);
+    return {
+      id: at.getTime(), date, role: killer ? 'K' : 'S', character: match.character,
+      result, perks: match.perks ?? [], notes,
+      map: match.map?.slice(0, 80), opposingKiller: match.killer?.slice(0, 80),
+      durationMs: match.durationMs, observed: match.observed, queue: match.queue,
+      hardcoreSource: run.id + ':' + index
+    };
+  }
+  const model = { outcomes, killerOutcomes, summarize, transferKey, toGeneralMatch };
   if (typeof module === 'object') module.exports = model;
   else root.Hardcore = model;
 })(globalThis);
