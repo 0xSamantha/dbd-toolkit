@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hardcore Challenge Tracker · TS DBD Toolkit</title>
+<link rel="icon" href="assets/ts-dbd-icon.png?v=2">
+<link rel="stylesheet" href="hardcore.css">
+<script defer src="dbd-perks.js"></script>
+<script defer src="dbd-auth-config.js"></script>
+<script defer src="hardcore-model.js"></script>
+<script defer src="hardcore.js"></script>
+</head>
+<body>
+<main>
+  <header id="masthead"><a href="dbd-toolkit.html">TS DBD Toolkit</a><span>Dead by Daylight</span></header>
+  <section id="app" aria-label="Hardcore Challenge Tracker"></section>
+  <p id="status" role="status"></p>
+</main>
+<dialog id="history" aria-labelledby="history-title">
+  <form method="dialog"><button class="quiet">Close</button></form>
+  <h2 id="history-title"></h2><div id="history-matches"></div>
+</dialog>
+</body>
+</html>

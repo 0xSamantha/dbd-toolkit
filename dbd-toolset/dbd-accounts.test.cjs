@@ -3,7 +3,7 @@ const read=n=>fs.readFileSync(path.join(__dirname,n),'utf8');
 const record=(id,notes='')=>({id,date:'2026-10-20',role:'S',character:'Meg',result:'Escaped',perks:[],notes});
 async function main(){
  const nodes=new Map(),stored=new Map(),tasks=[];
- const get=s=>{if(!nodes.has(s))nodes.set(s,{innerHTML:'',textContent:'',value:'0',setAttribute(){},elements:{email:{value:'test@example.com',checkValidity:()=>true},password:{value:'test password 123'},displayName:{value:''}}});return nodes.get(s)};
+ const get=s=>{if(!nodes.has(s))nodes.set(s,{innerHTML:'',textContent:'',value:'0',focus(){},setAttribute(){},elements:{email:{value:'test@example.com',checkValidity:()=>true},password:{value:'test password 123'},displayName:{value:''}}});return nodes.get(s)};
  let current=null,listener=null,failWrites=false,missingObserved=false,signupPayload=null;
  const rows=new Map(),observedRows=new Map();
  function query(table){
@@ -29,14 +29,16 @@ async function main(){
  }}}};
  const context=vm.createContext({console,setTimeout:fn=>tasks.push(fn),window:{addEventListener(){},FOG_AUTH_CONFIG:{url:'https://test.supabase.co',publishableKey:'sb_publishable_test',redirectUrl:'http://localhost:8000/dbd-toolkit.html'},supabase:{createClient:()=>client}},
   document:{querySelector:get,addEventListener(){},createElement:()=>({}),head:{appendChild:script=>script.onload()}},
-  location:{hash:''},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){}});
+  location:{hash:''},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){return 1},clearInterval(){}});
  const run=s=>vm.runInContext(s,context);
  for(const name of ['dbd-perks.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
- assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=admin-1'));
+ assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=timed-match-2'));
  run('globalThis.dataLayer=window.dataLayer=[]');
  const inline=[...read('dbd-toolkit.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');run(inline);
  run(read('dbd-accounts.js'));
- context.fieldRecord={...record(123),map:'Coal Tower',opposingKiller:'The Clown'};
+ context.fieldRecord={...record(123),map:'Coal Tower',opposingKiller:'The Clown',durationMs:42000,observed:{character:'The Clown',perks:['Pop Goes the Weasel']}};
+ assert.equal(run('FogAccounts.validateMatch(fieldRecord).durationMs'),42000);
+ assert.equal(run('FogAccounts.validateMatch(fieldRecord).observed.perks[0]'),'Pop Goes the Weasel');
  assert.equal(run('FogAccounts.validateMatch(fieldRecord).map'),'Coal Tower');
  assert.equal(run('FogAccounts.validateMatch(fieldRecord).opposingKiller'),'The Clown');
  for(const field of ['map','opposingKiller']){
@@ -76,6 +78,26 @@ async function main(){
  run('editMatch(123);matches=[];drawTrack()');
  assert.equal(run('editingMatch'),null,'Switching logs must clear the edit target');
  await run('FogAccounts.deleteMatch(123)');
+ run('showTab("track")');
+ get('#fc').value='Meg';
+ get('#fd').value='2026-10-20';
+ get('#fp').checked=true;
+ run('startGeneralMatch()');
+ assert.equal(run('matchTimer().character'),'Meg Thomas');
+ assert.equal(get('#match-result-fields').hidden,true);
+ run('drawTrack()');
+ assert.equal(get('#match-timed-perks').textContent,'Bond · Lithe');
+ run('endGeneralMatch()');
+ assert.equal(get('#match-result-fields').hidden,false);
+ get('#fr').value='Escaped';
+ get('#match-observed-character').value='The Clown';
+ for(let i=0;i<4;i++)get('#match-observed-perk-'+i).value=i===0?'Pop Goes the Weasel':'';
+ const timedId=run('matchTimer().startedAt');
+ await run('save()');
+ assert.equal(run('matchTimer()'),null);
+ assert.equal(run(`matches.find(m=>m.id===${timedId}).observed.character`),'The Clown');
+ assert.equal(run(`Number.isSafeInteger(matches.find(m=>m.id===${timedId}).durationMs)`),true);
+ await run(`FogAccounts.deleteMatch(${timedId})`);
  assert(get('#t-account').innerHTML.includes('Display name (optional, for registration)'));
  for(const role of ['S','K'])for(const result of ['Draw','Surrendered']){context.extraRecord={...record(50),role,result};assert.equal(run('FogAccounts.validateMatch(extraRecord).result'),result);}
  get('#account-form').elements.displayName.value='  Samantha  ';

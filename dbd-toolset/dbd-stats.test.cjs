@@ -92,6 +92,12 @@ const inline=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m
 context.dataLayer=context.window.dataLayer=[];
 vm.runInContext(inline,context);
 const run=code=>vm.runInContext(code,context);
+for(const tab of ['rand','perks','track','observed','items','calc']){
+  assert.equal(get('#t-'+tab).innerHTML,'',tab+' should render only when opened');
+}
+run('showTab("perks")');
+assert(get('#t-perks').innerHTML.includes('Perk library'));
+run('showTab("build")');
 run('build=["Resilience","Finesse"];drawBuild()');
 assert(get('#t-build').innerHTML.includes('aria-label="About Resilience"'));
 assert(get('#build-stats').innerHTML.includes('Build speed estimates'));

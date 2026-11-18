@@ -12,10 +12,16 @@ const FogAccounts=(()=>{
       typeof m.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(m.date)||
       typeof m.character!=='string'||m.character.length>80||
       ['map','opposingKiller'].some(key=>m[key]!==undefined&&(typeof m[key]!=='string'||m[key].length>80))||
+      (m.durationMs!==undefined&&(!Number.isSafeInteger(m.durationMs)||m.durationMs<0))||
+      (m.observed!==undefined&&(!m.observed||typeof m.observed.character!=='string'||m.observed.character.length>80||
+        !Array.isArray(m.observed.perks)||m.observed.perks.length>4||
+        m.observed.perks.some(p=>typeof p!=='string'||p.length>120)))||
       !isValidMatchResult(m.role,m.result)||
       !Array.isArray(m.perks)||m.perks.length>4||m.perks.some(p=>typeof p!=='string'||p.length>120)||
       typeof m.notes!=='string'||m.notes.length>300)throw Error('Invalid match record. Check its date, role, result, perks and notes.');
-    return {id:m.id,date:m.date,role:m.role,character:m.character,result:m.result,perks:[...m.perks],notes:m.notes,...(m.map!==undefined?{map:m.map}:{}),...(m.opposingKiller!==undefined?{opposingKiller:m.opposingKiller}:{})};
+    return {id:m.id,date:m.date,role:m.role,character:m.character,result:m.result,perks:[...m.perks],notes:m.notes,...(m.map!==undefined?{map:m.map}:{}),...(m.opposingKiller!==undefined?{opposingKiller:m.opposingKiller}:{}),
+      ...(m.durationMs!==undefined?{durationMs:m.durationMs}:{}),
+      ...(m.observed?{observed:{character:m.observed.character,perks:[...m.observed.perks]}}:{})};
   }
   function modeNote(){
     if(loading)return 'Loading your private cloud matches…';
@@ -30,9 +36,9 @@ const FogAccounts=(()=>{
       all.push(...data.map(row=>validateMatch(row.data)));
       if(data.length<500)break;
     }
-    if(token===epoch){matches=all;loading=false;drawTrack();drawAccount();}
+    if(token===epoch){matches=all;loading=false;refreshMatchTracker();drawAccount();}
   }
-  function refreshObserved(){if(typeof drawObserved==='function')drawObserved()}
+  function refreshObserved(){if(activeToolkitTab==="observed")drawObserved()}
   function observedMode(){
     if(loading)return 'Account data is loading…';
     if(user&&!observedReady)return observedError||'Your private build log is loading…';
@@ -73,14 +79,14 @@ const FogAccounts=(()=>{
   }
   async function copyGuestObserved(){if(!user)throw Error('Sign in first to copy your guest build log.');await importObserved(store.get('fog.observedBuilds',[]));}
   async function changeSession(session){
-    const token=++epoch;matchPerkDraft={role:tr,enabled:false,perks:[],source:''};user=null;matches=[];observedBuilds=[];observedEditing=null;observedReady=false;observedError='';loading=true;drawTrack();drawAccount();refreshObserved();
+    const token=++epoch;matchPerkDraft={role:tr,enabled:false,perks:[],source:''};user=null;matches=[];observedBuilds=[];observedEditing=null;observedReady=false;observedError='';loading=true;refreshMatchTracker();drawAccount();refreshObserved();
     try{
-      if(!session){matches=store.get('fog.matches',[]);observedBuilds=store.get('fog.observedBuilds',[]);loading=false;drawTrack();drawAccount();refreshObserved();return;}
+      if(!session){matches=store.get('fog.matches',[]);observedBuilds=store.get('fog.observedBuilds',[]);loading=false;refreshMatchTracker();drawAccount();refreshObserved();return;}
       const {data,error}=await client.auth.getUser();if(error)throw error;
       if(token!==epoch)return;
       if(!data.user?.email_confirmed_at)throw Error('Please verify your email using the link in your inbox, then sign in.');
       user=data.user;await loadMatches(token,user.id);if(token===epoch)await loadObserved(token,user.id);
-    }catch(error){if(token===epoch){user=null;matches=[];loading=true;notice('Could not load your account: '+error.message+' Sign out to return to guest mode.');drawTrack();}}
+    }catch(error){if(token===epoch){user=null;matches=[];loading=true;notice('Could not load your account: '+error.message+' Sign out to return to guest mode.');refreshMatchTracker();}}
   }
   async function saveMatch(record){
     requireReady();const rec=validateMatch(record),owner=user?.id,token=epoch;

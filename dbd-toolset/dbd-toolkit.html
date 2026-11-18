@@ -13,15 +13,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TS DBD Toolkit</title>
-<link rel="icon" type="image/png" href="assets/ts-dbd-icon.png?v=1">
-<link rel="apple-touch-icon" href="assets/ts-dbd-icon.png">
+<link rel="icon" type="image/png" href="assets/ts-dbd-icon.png?v=2">
+<link rel="apple-touch-icon" href="assets/ts-dbd-icon.png?v=2">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 :root{--desk:#101113;--face:#252628;--navy:#e3aaa4;--tx:#eee9e2;--mu:#bdb6ae;--ok:#a9c69c;--bad:#ef9690;--panel:#191a1c;--edge:#494344;--blood:#842e31;color-scheme:dark;
 --raised:inset -1px -1px #101011,inset 1px 1px #5b5352;
 --sunk:inset 0 1px 3px #080809;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html{scrollbar-gutter:stable;scroll-padding-top:env(safe-area-inset-top,0px);scroll-padding-bottom:calc(60px + env(safe-area-inset-bottom,0px))}
 *{box-sizing:border-box}
 body{margin:0;background:radial-gradient(ellipse at 50% 0,#332426 0,transparent 65%),var(--desk);color:var(--tx);font:20px/1.25 'VT323',monospace;padding:16px 12px 64px}
 main.window{max-width:880px;margin:0 auto;background:var(--face);border:1px solid var(--edge);box-shadow:0 12px 48px #0008}
@@ -240,7 +240,7 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 #match-edit-dialog{width:min(760px,calc(100% - 24px));max-height:90dvh;overflow-y:auto;padding:0;border:1px solid var(--edge);background:var(--face);color:var(--tx);font:inherit}
 #match-edit-dialog::backdrop{background:#000b}
 #match-edit-dialog .card{margin:0;border:0}
-.match-name-field{position:relative;flex:1;min-width:180px}
+.match-name-field{position:relative;flex:1 1 180px;min-width:0}
 .match-name-field input{width:100%;box-sizing:border-box}
 .match-suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:20;max-height:180px;overflow-y:auto;background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:4px;box-shadow:0 8px 20px #0008}
 .match-suggestions .btn{display:block;width:100%;text-align:left;margin:2px 0;white-space:normal}
@@ -253,6 +253,7 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 <aside id="account-prompt" class="account-prompt" aria-label="Save your progress"><div><strong>Keep your builds and match history.</strong><p>Create an account to save your logs and access them on other devices.</p><small>Already have guest logs? Copy them into your account after signing in.</small></div><button class="btn" type="button" onclick="showTab('account')">Create an account / Sign in</button></aside>
 <p class="sub">For Dead by Daylight: loadout planner, random loadout generator, match logging with stats, generator calculator. </p>
 <nav role="tablist" id="tabs"></nav>
+<p><a class="btn" href="hardcore.html">Hardcore Challenge Tracker</a></p>
 
 <section id="t-build"></section>
 <section id="t-rand" hidden></section>
@@ -268,7 +269,7 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 </div>
 </main>
 <div id="tip" role="tooltip" tabindex="0" hidden></div>
-<div class="taskbar"><button class="start" onclick="showTab('build')">Start</button><div class="task" id="tbl">Build planner</div><div class="clock" id="clk"></div></div>
+<div class="taskbar"><button class="start" onclick="showTab('build');window.scrollTo(0,0)">Start</button><div class="task" id="tbl">Build planner</div><div class="clock" id="clk"></div></div>
 <script src="dbd-perks.js"></script>
 <script src="dbd-stats.js"></script>
 <script src="dbd-items-data.js"></script>
@@ -325,14 +326,27 @@ function initialTab(){
   const saved=store.get("fog.activeTab","build");
   return TABS.some(([id])=>id===saved)?saved:"build";
 }
+let activeToolkitTab, trackNeedsRender=true;
+function refreshMatchTracker(){
+  trackNeedsRender=true;
+  if(activeToolkitTab==="track")drawTrack();
+}
 function showTab(id){
   if(id==="admin"&&(typeof FogAccounts==="undefined"||!FogAccounts.isAdmin()))id="account";
   if(!TABS.some(([key])=>key===id))id="build";
   $("#tbl").textContent=TABS.find(t=>t[0]===id)[1];
   TABS.forEach(([k])=>{$("#t-"+k).hidden=k!==id;$("#tab-"+k).setAttribute(k==="account"?"aria-pressed":"aria-selected",k===id)});
+  activeToolkitTab=id;
   store.set("fog.activeTab",id);
   if(id==="admin"&&typeof FogAdmin!=="undefined")FogAdmin.draw();
-  if(id==="track")drawMatchPerks();
+  if(id==="build"&&!$("#t-build").innerHTML)drawBuild();
+  if(id==="rand"&&!$("#t-rand").innerHTML)drawRand();
+  if(id==="perks"&&!$("#t-perks").innerHTML)drawLibrary();
+  if(id==="calc"&&!$("#t-calc").innerHTML)drawCalc();
+  if(id==="track"){
+    if(trackNeedsRender)drawTrack();
+    else drawMatchPerks();
+  }
   if(id==="items")drawItems();
   if(id==="observed")drawObserved();
   // Preserve build links and verification tokens while remembering this view on refresh.
@@ -456,12 +470,86 @@ function showMatchSuggestions(id,kind){
   box.hidden=false;
   box.innerHTML=names.length?names.map(name=>`<button type="button" class="btn ghost" data-name="${esc(name)}" onclick="chooseMatchName('${id}',this.dataset.name)">${esc(name)}</button>`).join(""):'<small>No suggestions. You can keep your typed name.</small>';
 }
-function chooseMatchName(id,name){$("#"+id).value=name;$("#"+id).focus();$("#"+id+"-suggestions").hidden=true}
+function chooseMatchName(id,name){$("#"+id).value=name;$("#"+id).focus({preventScroll:true});$("#"+id+"-suggestions").hidden=true}
 // Date inputs use the visitor's calendar day, rather than the UTC day.
 function localMatchDate(date=new Date()){
   return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
 }
 let tr="S",editingMatch=null;
+let matchClockInterval;
+function matchTimerKey(){
+  return "fog.matchTimer."+(typeof FogAccounts==="undefined"?"fog.presets.guest":FogAccounts.presetStorageKey());
+}
+function matchTimer(){return store.get(matchTimerKey(),null)}
+function matchDuration(ms){
+  const seconds=Math.floor(ms/1000);
+  return Math.floor(seconds/60)+":"+String(seconds%60).padStart(2,"0");
+}
+function updateMatchTimer(){
+  if(matchClockInterval!==undefined)clearInterval(matchClockInterval);
+  matchClockInterval=undefined;
+  const draft=editingMatch?null:matchTimer();
+  const running=draft&&draft.endedAt==null;
+  $("#match-result-fields").hidden=!!running;
+  const outcome=$("#fr");
+  const placeholder=outcome.querySelector?.('option[value=""]');
+  if(!draft&&placeholder){
+    placeholder.remove();
+    outcome.selectedIndex=0;
+  }
+  if(draft&&!placeholder){
+    outcome.insertAdjacentHTML?.("afterbegin",'<option value="">Choose a result</option>');
+    outcome.value="";
+  }
+  $("#match-start").hidden=!!editingMatch||!!draft;
+  $("#match-stop").hidden=!running;
+  $("#match-discard").hidden=!draft;
+  $("#match-elapsed").hidden=!draft;
+  if(!editingMatch)$("#match-role").inert=!!draft;
+  $("#fc").readOnly=!!draft;
+  $("#fd").readOnly=!!draft;
+  $("#match-loadout").hidden=!!draft;
+  $("#match-timed-perks").textContent=draft?.perks.join(" · ")||"";
+  if(!draft)return;
+  const tick=()=>{$("#match-elapsed").textContent=(running?"Elapsed · ":"Duration · ")+
+    matchDuration(Math.max(0,(draft.endedAt??Date.now())-draft.startedAt))};
+  tick();
+  if(running)matchClockInterval=setInterval(tick,250);
+}
+function startGeneralMatch(){
+  if(editingMatch||matchTimer())return;
+  let perks;
+  try{perks=recordedMatchPerks()}catch(error){alert(error.message);return}
+  const character=matchName($("#fc").value,tr);
+  if(!character){$("#fc").focus();return alert("Choose your character before starting the timer.")}
+  store.set(matchTimerKey(),{role:tr,character,perks,date:$("#fd").value||localMatchDate(),startedAt:Date.now()});
+  if(!matchTimer())return alert("Could not save the timer in browser storage.");
+  $("#fc").value=character;
+  $("#fc-suggestions").hidden=true;
+  updateMatchTimer();
+  $("#match-stop").focus({preventScroll:true});
+}
+function endGeneralMatch(){
+  const draft=matchTimer();
+  if(!draft||draft.endedAt!=null)return;
+  store.set(matchTimerKey(),{...draft,endedAt:Date.now()});
+  if(matchTimer()?.endedAt==null)return alert("Could not save the end time. Try ending the timer again.");
+  updateMatchTimer();
+  $("#fr").focus();
+}
+function discardGeneralTimer(){
+  store.set(matchTimerKey(),null);
+  updateMatchTimer();
+  $("#match-start").focus({preventScroll:true});
+}
+function observedMatchFields(observed){
+  const options=[...new Set([...PERKS.S,...PERKS.K].map(perk=>perk[0]))].sort((a,b)=>a.localeCompare(b));
+  return `<details ${observed?"open":""}><summary>Add observed build</summary>
+    <label>Observed character<input id="match-observed-character" maxlength="80" value="${esc(observed?.character||"")}"></label>
+    <datalist id="match-observed-choices">${options.map(name=>`<option value="${esc(name)}">`).join("")}</datalist>
+    <div class="slots">${[0,1,2,3].map(i=>`<label>Observed perk ${i+1}<input id="match-observed-perk-${i}"
+      list="match-observed-choices" maxlength="120" value="${esc(observed?.perks[i]||"")}"></label>`).join("")}</div></details>`;
+}
 function cancelMatchEdit(){
   editingMatch=null;matchPerkDraft={role:tr,enabled:false,perks:[],source:""};drawTrack();
 }
@@ -473,34 +561,67 @@ function editMatch(id){
   $("#fc").focus?.({preventScroll:true});
 }
 
-function setTR(r){tr=r;matchPerkDraft={role:r,enabled:false,perks:[],source:""};drawTrack()}
+function setTR(r){if(matchTimer())return;tr=r;matchPerkDraft={role:r,enabled:false,perks:[],source:""};drawTrack()}
 async function save(){
-  let perks;try{perks=recordedMatchPerks()}catch(error){alert(error.message);return;}
+  const timerKey=matchTimerKey(),draft=editingMatch?null:matchTimer();
+  if(draft&&draft.endedAt==null)return;
+  if(draft&&!$("#fr").value){$("#fr").focus();return alert("Choose a match result before saving.")}
+  let perks;try{perks=draft?.perks??recordedMatchPerks()}catch(error){alert(error.message);return;}
   if(editingMatch&&!matches.includes(editingMatch)){cancelMatchEdit();alert("This match is no longer available. Please reopen it from history.");return;}
-  const rec={id:editingMatch?.id||Date.now(),date:$("#fd").value||localMatchDate(),role:tr,character:matchName($("#fc").value||"",tr)||"Unknown",
+  const rec={id:editingMatch?.id||draft?.startedAt||Date.now(),date:draft?.date||$("#fd").value||localMatchDate(),role:tr,character:draft?.character||matchName($("#fc").value||"",tr)||"Unknown",
     map:matchName($("#fm").value||"","map"),opposingKiller:tr==="S"?matchName($("#fk").value||"","K"):"",
     result:tr==="K"&&/^[0-4]$/.test($("#fr").value)?Number($("#fr").value):$("#fr").value,perks,notes:$("#fn").value.trim()};
-  try{await FogAccounts.saveMatch(rec);cancelMatchEdit()}catch(error){alert("Match was not saved: "+error.message)}
+  const durationMs=draft?Math.max(0,draft.endedAt-draft.startedAt):editingMatch?.durationMs;
+  if(durationMs!==undefined)rec.durationMs=durationMs;
+  const observed={character:$("#match-observed-character").value.trim(),perks:[...new Set(
+    [0,1,2,3].map(i=>$("#match-observed-perk-"+i).value.trim()).filter(Boolean))]};
+  if(observed.character||observed.perks.length)rec.observed=observed;
+  const button=$("#match-save");
+  if(button.disabled)return;
+  button.disabled=true;
+  try{
+    await FogAccounts.saveMatch(rec);
+    if(draft&&store.get(timerKey,null)?.startedAt===draft.startedAt)store.set(timerKey,null);
+    cancelMatchEdit();
+  }catch(error){alert("Match was not saved: "+error.message)}finally{button.disabled=false}
 }
 async function del(id){try{await FogAccounts.deleteMatch(id);drawTrack()}catch(error){alert("Could not delete match: "+error.message)}}
 async function imp(){try{previewMatchImport(JSON.parse($("#io").value))}catch(error){pendingMatchImport=null;$("#match-import-preview").innerHTML="";$("#match-import-status").textContent="Could not preview matches: "+error.message}}
 function exp(){$("#io").value=JSON.stringify(matches,null,1);$("#io").select()}
 function drawTrack(){
+  trackNeedsRender=false;
   // An account change, reload, or deletion must not leave another log's record editable.
   if(editingMatch&&!matches.includes(editingMatch)){
     editingMatch=null;matchPerkDraft={role:tr,enabled:false,perks:[],source:""};
   }
-  $("#t-track").innerHTML=`${matchMetricsHTML(matches)}${editingMatch?'<dialog id="match-edit-dialog" aria-labelledby="match-editor-title" oncancel="event.preventDefault();cancelMatchEdit()">':""}<div class="card" id="match-editor"><h2 id="match-editor-title">${editingMatch?"Edit match — "+esc(editingMatch.character)+" · "+esc(editingMatch.date):"Log a match"}</h2><p class="sub">${esc(typeof FogAccounts!=="undefined"?FogAccounts.modeNote():"Guest mode: matches are saved only in this browser.")}</p>${editingMatch?`<p class="sub">Editing ${RN[tr].toLowerCase()} match. Save changes to update this entry.</p>`:seg(tr,"setTR")}
+  const timerDraft=editingMatch?null:matchTimer();
+  if(timerDraft){
+    tr=timerDraft.role;
+    matchPerkDraft={role:tr,enabled:!!timerDraft.perks.length,perks:[...timerDraft.perks],source:""};
+  }
+  $("#t-track").innerHTML=`${editingMatch?'<dialog id="match-edit-dialog" aria-labelledby="match-editor-title" oncancel="event.preventDefault();cancelMatchEdit()">':""}<div class="card" id="match-editor"><h2 id="match-editor-title">${editingMatch?"Edit match — "+esc(editingMatch.character)+" · "+esc(editingMatch.date):"Log a match"}</h2><p class="sub">${esc(typeof FogAccounts!=="undefined"?FogAccounts.modeNote():"Guest mode: matches are saved only in this browser.")}</p>${editingMatch?`<p class="sub">Editing ${RN[tr].toLowerCase()} match. Save changes to update this entry.</p>`:`<div id="match-role">${seg(tr,"setTR")}</div>`}
   <div class="row"><label>Date<input type="date" id="fd" value="${localMatchDate()}"></label>
   ${matchNameField("fc",tr==="K"?"Your killer":"Your survivor",tr,tr==="K"?"Type a killer, e.g. clown":"Type a survivor, e.g. Meg")}
+  </div>
+  <div id="match-loadout"><label class="effect-toggle"><input type="checkbox" id="fp" ${matchPerkDraft.role===tr&&matchPerkDraft.enabled?"checked":""} aria-controls="match-perk-fields">Record perks used in this match (optional)</label><div id="match-perk-fields" hidden></div></div>
+  <div class="row">
+    <button type="button" class="btn ghost" id="match-start" onclick="startGeneralMatch()">Start timer</button>
+    <span id="match-elapsed" role="timer"></span>
+    <span id="match-timed-perks"></span>
+    <button type="button" class="btn" id="match-stop" onclick="endGeneralMatch()">End timer</button>
+    <button type="button" class="btn ghost" id="match-discard" onclick="discardGeneralTimer()">Discard timer</button>
+  </div>
+  <div id="match-result-fields">
+  <div class="row">
   ${tr==="S"?matchNameField("fk","Killer faced (optional)","K","e.g. clown"):""}
   ${matchNameField("fm","Map (optional)","map","Type a map name")}
   <label>${tr==="S"?"Result":"Kills / result"}${tr==="S"?`<select id="fr"><option>Escaped</option><option>Died</option><option>Draw</option><option>Surrendered</option></select>`:`<select id="fr">${[0,1,2,3,4].map(n=>`<option>${n}</option>`).join("")}<option>Draw</option><option>Surrendered</option></select>`}</label></div>
-  <label class="effect-toggle"><input type="checkbox" id="fp" ${matchPerkDraft.role===tr&&matchPerkDraft.enabled?"checked":""} aria-controls="match-perk-fields">Record perks used in this match (optional)</label><div id="match-perk-fields" hidden></div>
   <label>Notes<textarea id="fn" maxlength="300" placeholder="What went wrong, what worked"></textarea></label>
-  <p><button class="btn" onclick="save()">${editingMatch?"Save changes":"Save match"}</button> ${editingMatch?'<button class="btn ghost" onclick="cancelMatchEdit()">Cancel</button>':""}</p></div>${editingMatch?"</dialog>":""}
+  ${observedMatchFields(editingMatch?.observed)}
+  <p><button class="btn" id="match-save" onclick="save()">${editingMatch?"Save changes":"Save match"}</button> ${editingMatch?'<button class="btn ghost" onclick="cancelMatchEdit()">Cancel</button>':""}</p></div></div>${editingMatch?"</dialog>":""}
+  ${matchMetricsHTML(matches)}
   ${advancedMatchMetricsHTML(matches)}
-  <div class="card"><h2>History</h2>${matches.length?`<div class="tablewrap"><table>${matches.slice(0,30).map(m=>`<tr><td>${esc(m.date)}</td><td>${esc(m.character)}${m.opposingKiller?`<br><small>Against ${esc(m.opposingKiller)}</small>`:""}${m.map?`<br><small>Map: ${esc(m.map)}</small>`:""}</td><td class="${matchOutcome(m)}">${esc(matchResultLabel(m))}</td><td>${esc(m.notes||"")}${m.perks?.length?`<details><summary>Perks used (${m.perks.length})</summary>${m.perks.map(n=>`<p>${esc(n)}<br><small>${esc(perkOwner(n))}</small></p>`).join("")}</details>`:""}</td><td><button class="btn ghost" onclick="editMatch(${m.id})" aria-label="Edit match">Edit</button> <button class="btn ghost" onclick="del(${m.id})" aria-label="Delete match">Delete</button></td></tr>`).join("")}</table></div>`:"<p class='sub'>Nothing logged yet.</p>"}</div>
+  <div class="card"><h2>History</h2>${matches.length?`<div class="tablewrap"><table>${matches.slice(0,30).map(m=>`<tr><td>${esc(m.date)}</td><td>${esc(m.character)}${m.opposingKiller?`<br><small>Against ${esc(m.opposingKiller)}</small>`:""}${m.map?`<br><small>Map: ${esc(m.map)}</small>`:""}</td><td class="${matchOutcome(m)}">${esc(matchResultLabel(m))}${m.durationMs!==undefined?`<br><small>${matchDuration(m.durationMs)}</small>`:""}</td><td>${esc(m.notes||"")}${m.perks?.length?`<details><summary>Perks used (${m.perks.length})</summary>${m.perks.map(n=>`<p>${esc(n)}<br><small>${esc(perkOwner(n))}</small></p>`).join("")}</details>`:""}${m.observed?`<details><summary>Observed build</summary><p>${esc([m.observed.character,...m.observed.perks].filter(Boolean).join(" · "))}</p></details>`:""}</td><td><button class="btn ghost" onclick="editMatch(${m.id})" aria-label="Edit match">Edit</button> <button class="btn ghost" onclick="del(${m.id})" aria-label="Delete match">Delete</button></td></tr>`).join("")}</table></div>`:"<p class='sub'>Nothing logged yet.</p>"}</div>
   <details class="card"><summary>Export or import (backup or move to another device)</summary><p class="sub">Upload a JSON array, a single match object, or an object containing a matches array. Review the preview before confirming. Screenshot recognition is not available yet. Export the currently displayed history as a backup. Import adds records by match ID to your current guest log or signed-in account; it keeps other records.</p><label>Upload match JSON<input id="match-file" type="file" accept=".json,application/json"></label><p id="match-import-status" role="status"></p><div id="match-import-preview"></div><textarea id="io" aria-label="Match data JSON"></textarea><div class="row"><button class="btn ghost" onclick="exp()">Export</button><button class="btn ghost" onclick="imp()">Preview import</button></div></details>`;
   if(editingMatch){
     $("#fd").value=editingMatch.date;$("#fc").value=editingMatch.character;
@@ -512,6 +633,11 @@ function drawTrack(){
   $("#match-file").onchange=e=>previewMatchFile(e.target.files[0]);
   drawMatchPerks();
   $("#fp").onchange=e=>{matchPerkDraft.enabled=e.target.checked;drawMatchPerks()};
+  if(timerDraft){
+    $("#fd").value=timerDraft.date;
+    $("#fc").value=timerDraft.character;
+  }
+  updateMatchTimer();
   if(editingMatch)$("#match-edit-dialog").showModal?.();
 }
 
@@ -573,12 +699,11 @@ document.addEventListener("scroll",e=>{if(e.target===tip)return;pin=null;hideTip
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){pin=null;hideTip()}});
 window.addEventListener("resize",()=>{pin=null;hideTip()});
 observedBuilds=store.get("fog.observedBuilds",[]);
-drawBuild();drawRand();drawTrack();drawCalc();drawLibrary();drawObserved();drawItems();
 showTab(initialTab());
 </script>
 <script src="dbd-auth-config.js"></script>
 <!-- Version this URL when the stored match format changes, to avoid cached validators dropping fields. -->
-<script src="dbd-accounts.js?v=admin-1"></script>
+<script src="dbd-accounts.js?v=timed-match-2"></script>
 <script src="dbd-admin.js?v=1"></script>
 </body>
 </html>
