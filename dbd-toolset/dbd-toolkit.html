@@ -242,6 +242,13 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 #match-edit-dialog .card{margin:0;border:0}
 .match-name-field{position:relative;flex:1 1 180px;min-width:0}
 .match-name-field input{width:100%;box-sizing:border-box}
+@media(max-width:600px){
+  .match-history table,.match-history tbody{display:block;width:100%;min-width:0}
+  .match-history tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));padding:8px;border-bottom:1px solid var(--edge)}
+  .match-history td{display:block;min-width:0;border:0}
+  .match-history td:nth-child(4),.match-history-actions{grid-column:1/-1}
+  .match-history .match-history-actions{display:flex;flex-wrap:wrap;gap:8px}
+}
 .match-suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:20;max-height:180px;overflow-y:auto;background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:4px;box-shadow:0 8px 20px #0008}
 .match-suggestions .btn{display:block;width:100%;text-align:left;margin:2px 0;white-space:normal}
 </style>
@@ -473,7 +480,7 @@ function showMatchSuggestions(id,kind){
   box.hidden=false;
   box.innerHTML=names.length?names.map(name=>`<button type="button" class="btn ghost" data-name="${esc(name)}" onclick="chooseMatchName('${id}',this.dataset.name)">${esc(name)}</button>`).join(""):'<small>No suggestions. You can keep your typed name.</small>';
 }
-function chooseMatchName(id,name){$("#"+id).value=name;$("#"+id).focus({preventScroll:true});$("#"+id+"-suggestions").hidden=true}
+function chooseMatchName(id,name){$("#"+id).value=name;$("#"+id).focus({preventScroll:true});$("#"+id+"-suggestions").hidden=true;if(id==="fc")rememberTimedCharacter()}
 // Date inputs use the visitor's calendar day, rather than the UTC day.
 function localMatchDate(date=new Date()){
   return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
@@ -509,7 +516,6 @@ function updateMatchTimer(){
   $("#match-discard").hidden=!draft;
   $("#match-elapsed").hidden=!draft;
   if(!editingMatch)$("#match-role").inert=!!draft;
-  $("#fc").readOnly=!!draft;
   $("#fd").readOnly=!!draft;
   $("#match-loadout").hidden=!!draft;
   $("#match-timed-perks").textContent=draft?.perks.join(" · ")||"";
@@ -528,13 +534,16 @@ function startGeneralMatch(){
   let perks;
   try{perks=recordedMatchPerks()}catch(error){alert(error.message);return}
   const character=matchName($("#fc").value,tr);
-  if(!character){$("#fc").focus();return alert("Choose your character before starting the timer.")}
   store.set(matchTimerKey(),{role:tr,character,perks,date:$("#fd").value||localMatchDate(),startedAt:Date.now()});
   if(!matchTimer())return alert("Could not save the timer in browser storage.");
   $("#fc").value=character;
   $("#fc-suggestions").hidden=true;
   updateMatchTimer();
   $("#match-stop").focus({preventScroll:true});
+}
+function rememberTimedCharacter(){
+  const draft=editingMatch?null:matchTimer();
+  if(draft)store.set(matchTimerKey(),{...draft,character:matchName($("#fc").value,tr)});
 }
 function endGeneralMatch(){
   const draft=matchTimer();
@@ -632,7 +641,7 @@ async function save(){
   if(draft&&!$("#fr").value){$("#fr").focus();return alert("Choose a match result before saving.")}
   let perks;try{perks=draft?.perks??recordedMatchPerks()}catch(error){alert(error.message);return;}
   if(editingMatch&&!matches.includes(editingMatch)){cancelMatchEdit();alert("This match is no longer available. Please reopen it from history.");return;}
-  const rec={id:editingMatch?.id||draft?.startedAt||Date.now(),date:draft?.date||$("#fd").value||localMatchDate(),role:tr,character:draft?.character||matchName($("#fc").value||"",tr)||"Unknown",
+  const rec={id:editingMatch?.id||draft?.startedAt||Date.now(),date:draft?.date||$("#fd").value||localMatchDate(),role:tr,character:matchName($("#fc").value||"",tr)||"Unknown",
     map:matchName($("#fm").value||"","map"),opposingKiller:tr==="S"?matchName($("#fk").value||"","K"):"",
     result:tr==="K"&&/^[0-4]$/.test($("#fr").value)?Number($("#fr").value):$("#fr").value,perks,notes:$("#fn").value.trim()};
   const queue=matchQueueValue("match-queue");
@@ -668,10 +677,6 @@ function drawTrack(){
   }
   $("#t-track").innerHTML=`${hardcoreTransferCard(pendingHardcoreMatch())}${editingMatch?'<dialog id="match-edit-dialog" aria-labelledby="match-editor-title" oncancel="event.preventDefault();cancelMatchEdit()">':""}<div class="card" id="match-editor"><h2 id="match-editor-title">${editingMatch?"Edit match — "+esc(editingMatch.character)+" · "+esc(editingMatch.date):"Log a match"}</h2><p class="sub">${esc(typeof FogAccounts!=="undefined"?FogAccounts.modeNote():"Guest mode: matches are saved only in this browser.")}</p>${editingMatch?`<p class="sub">Editing ${RN[tr].toLowerCase()} match. Save changes to update this entry.</p>`:`<div id="match-role">${seg(tr,"setTR")}</div>`}
   <p id="match-history-status" role="status"></p>
-  <div class="row"><label>Date<input type="date" id="fd" value="${localMatchDate()}"></label>
-  ${matchNameField("fc",tr==="K"?"Your killer":"Your survivor",tr,tr==="K"?"Type a killer, e.g. clown":"Type a survivor, e.g. Meg")}
-  </div>
-  <div id="match-loadout"><label class="effect-toggle"><input type="checkbox" id="fp" ${matchPerkDraft.role===tr&&matchPerkDraft.enabled?"checked":""} aria-controls="match-perk-fields">Record perks used in this match (optional)</label><div id="match-perk-fields" hidden></div></div>
   <div class="row">
     <button type="button" class="btn ghost" id="match-start" onclick="startGeneralMatch()">Start timer</button>
     <span id="match-elapsed" role="timer"></span>
@@ -679,6 +684,10 @@ function drawTrack(){
     <button type="button" class="btn" id="match-stop" onclick="endGeneralMatch()">End timer</button>
     <button type="button" class="btn ghost" id="match-discard" onclick="discardGeneralTimer()">Discard timer</button>
   </div>
+  <div class="row"><label>Date<input type="date" id="fd" value="${localMatchDate()}"></label>
+  ${matchNameField("fc",tr==="K"?"Your killer":"Your survivor",tr,tr==="K"?"Type a killer, e.g. clown":"Type a survivor, e.g. Meg")}
+  </div>
+  <div id="match-loadout"><label class="effect-toggle"><input type="checkbox" id="fp" ${matchPerkDraft.role===tr&&matchPerkDraft.enabled?"checked":""} aria-controls="match-perk-fields">Record perks used in this match (optional)</label><div id="match-perk-fields" hidden></div></div>
   <div id="match-result-fields">
   <div class="row">
   ${tr==="S"?matchNameField("fk","Killer faced (optional)","K","e.g. clown"):""}
@@ -690,7 +699,7 @@ function drawTrack(){
   <p><button class="btn" id="match-save" onclick="save()">${editingMatch?"Save changes":"Save match"}</button> ${editingMatch?'<button class="btn ghost" onclick="cancelMatchEdit()">Cancel</button>':""}</p></div></div>${editingMatch?"</dialog>":""}
   ${matchMetricsHTML(matches)}
   ${advancedMatchMetricsHTML(matches)}
-  <div class="card"><h2>History</h2>${matches.length?`<div class="tablewrap"><table>${matches.slice(0,30).map(m=>`<tr><td>${esc(m.date)}</td><td>${esc(m.character)}${m.opposingKiller?`<br><small>Against ${esc(m.opposingKiller)}</small>`:""}${m.map?`<br><small>Map: ${esc(m.map)}</small>`:""}</td><td class="${matchOutcome(m)}">${esc(matchResultLabel(m))}${m.durationMs!==undefined?`<br><small>${matchDuration(m.durationMs)}</small>`:""}${Object.hasOwn(matchQueueLabels,m.queue)?`<br><small>${matchQueueLabels[m.queue]}</small>`:""}</td><td>${esc(m.notes||"")}${m.perks?.length?`<details><summary>Perks used (${m.perks.length})</summary>${m.perks.map(n=>`<p>${esc(n)}<br><small>${esc(perkOwner(n))}</small></p>`).join("")}</details>`:""}${m.observed?`<details><summary>Observed build</summary><p>${esc([m.observed.character,...m.observed.perks].filter(Boolean).join(" · "))}</p></details>`:""}</td><td><button class="btn ghost" onclick="editMatch(${m.id})" aria-label="Edit match">Edit</button> <button class="btn ghost" onclick="del(${m.id})" aria-label="Delete match">Delete</button></td></tr>`).join("")}</table></div>`:"<p class='sub'>Nothing logged yet.</p>"}</div>
+  <div class="card"><h2>History</h2>${matches.length?`<div class="tablewrap match-history"><table role="table" aria-label="Match history"><tbody role="rowgroup">${matches.slice(0,30).map(m=>`<tr role="row"><td role="cell">${esc(m.date)}</td><td role="cell">${esc(m.character)}${m.opposingKiller?`<br><small>Against ${esc(m.opposingKiller)}</small>`:""}${m.map?`<br><small>Map: ${esc(m.map)}</small>`:""}</td><td role="cell" class="${matchOutcome(m)}">${esc(matchResultLabel(m))}${m.durationMs!==undefined?`<br><small>${matchDuration(m.durationMs)}</small>`:""}${Object.hasOwn(matchQueueLabels,m.queue)?`<br><small>${matchQueueLabels[m.queue]}</small>`:""}</td><td role="cell">${esc(m.notes||"")}${m.perks?.length?`<details><summary>Perks used (${m.perks.length})</summary>${m.perks.map(n=>`<p>${esc(n)}<br><small>${esc(perkOwner(n))}</small></p>`).join("")}</details>`:""}${m.observed?`<details><summary>Observed build</summary><p>${esc([m.observed.character,...m.observed.perks].filter(Boolean).join(" · "))}</p></details>`:""}</td><td role="cell" class="match-history-actions"><button class="btn ghost" onclick="editMatch(${m.id})" aria-label="Edit match">Edit</button> <button class="btn ghost" onclick="del(${m.id})" aria-label="Delete match">Delete</button></td></tr>`).join("")}</tbody></table></div>`:"<p class='sub'>Nothing logged yet.</p>"}</div>
   <details class="card"><summary>Export or import (backup or move to another device)</summary><p class="sub">Upload a JSON array, a single match object, or an object containing a matches array. Review the preview before confirming. Screenshot recognition is not available yet. Export the currently displayed history as a backup. Import adds records by match ID to your current guest log or signed-in account; it keeps other records.</p><label>Upload match JSON<input id="match-file" type="file" accept=".json,application/json"></label><p id="match-import-status" role="status"></p><div id="match-import-preview"></div><textarea id="io" aria-label="Match data JSON"></textarea><div class="row"><button class="btn ghost" onclick="exp()">Export</button><button class="btn ghost" onclick="imp()">Preview import</button></div></details>`;
   if(editingMatch){
     $("#fd").value=editingMatch.date;$("#fc").value=editingMatch.character;
@@ -698,13 +707,14 @@ function drawTrack(){
     $("#fr").value=String(editingMatch.result);
     if(tr==="S")$("#fk").value=editingMatch.opposingKiller||"";
   }
+  $("#fc").onchange=rememberTimedCharacter;
   pendingMatchImport=null;
   $("#match-file").onchange=e=>previewMatchFile(e.target.files[0]);
   drawMatchPerks();
   $("#fp").onchange=e=>{matchPerkDraft.enabled=e.target.checked;drawMatchPerks()};
   if(timerDraft){
     $("#fd").value=timerDraft.date;
-    $("#fc").value=timerDraft.character;
+    $("#fc").value=timerDraft.character||"";
   }
   updateMatchTimer();
   if(editingMatch)$("#match-edit-dialog").showModal?.();

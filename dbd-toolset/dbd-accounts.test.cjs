@@ -104,10 +104,13 @@ async function main(){
  assert.equal(run('editingMatch'),null,'Switching logs must clear the edit target');
  await run('FogAccounts.deleteMatch(123)');
  run('showTab("track")');
- get('#fc').value='Meg';
+ get('#fc').value='';
  get('#fd').value='2026-10-20';
  get('#fp').checked=true;
  run('startGeneralMatch()');
+ assert.equal(run('matchTimer().character'),'');
+ get('#fc').value='Meg';
+ get('#fc').onchange();
  assert.equal(run('matchTimer().character'),'Meg Thomas');
  assert.equal(get('#match-result-fields').hidden,true);
  run('drawTrack()');
@@ -120,7 +123,9 @@ async function main(){
  const timedId=run('matchTimer().startedAt');
  await run('save()');
  assert.equal(run('matchTimer()'),null);
+ assert.equal(run(`matches.find(m=>m.id===${timedId}).character`),'Meg Thomas');
  assert.equal(run(`matches.find(m=>m.id===${timedId}).observed.character`),'The Clown');
+ assert.match(get('#t-track').innerHTML,/class="match-history-actions"[^]*>Edit<\/button>[^]*>Delete<\/button>/);
  assert.equal(run(`Number.isSafeInteger(matches.find(m=>m.id===${timedId}).durationMs)`),true);
  await run(`FogAccounts.deleteMatch(${timedId})`);
  assert(get('#t-account').innerHTML.includes('Display name (optional, for registration)'));
