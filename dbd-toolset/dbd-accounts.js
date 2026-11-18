@@ -41,7 +41,7 @@ const FogAccounts=(()=>{
       all.push(...data.map(row=>validateMatch(row.data)));
       if(data.length<500)break;
     }
-    if(token===epoch){matches=all;loading=false;refreshMatchTracker();drawAccount();}
+    if(token===epoch){matches=sortMatchHistory(all);loading=false;refreshMatchTracker();drawAccount();}
   }
   function refreshObserved(){if(activeToolkitTab==="observed")drawObserved()}
   function observedMode(){
@@ -90,7 +90,7 @@ const FogAccounts=(()=>{
     sessionOwner=nextOwner;
     const token=++epoch;matchPerkDraft={role:tr,enabled:false,perks:[],source:''};user=null;matches=[];observedBuilds=[];observedEditing=null;observedReady=false;observedError='';loading=true;refreshMatchTracker();drawAccount();refreshObserved();
     try{
-      if(!session){matches=store.get('fog.matches',[]);observedBuilds=store.get('fog.observedBuilds',[]);loading=false;refreshMatchTracker();drawAccount();refreshObserved();return;}
+      if(!session){matches=sortMatchHistory(store.get('fog.matches',[]));observedBuilds=store.get('fog.observedBuilds',[]);loading=false;refreshMatchTracker();drawAccount();refreshObserved();return;}
       const {data,error}=await client.auth.getUser();if(error)throw error;
       if(token!==epoch)return;
       if(!data.user?.email_confirmed_at)throw Error('Please verify your email using the link in your inbox, then sign in.');
@@ -110,7 +110,7 @@ const FogAccounts=(()=>{
       if(error)throw error;
     }
     if(token!==epoch)throw Error('Account changed. Reopen your account before saving again.');
-    matches=[rec,...(newOnly?history:matches).filter(m=>m.id!==rec.id)];
+    matches=sortMatchHistory([rec,...(newOnly?history:matches).filter(m=>m.id!==rec.id)]);
     if(!owner)store.set('fog.matches',matches);
   }
   async function deleteMatch(id){
@@ -127,7 +127,7 @@ const FogAccounts=(()=>{
       const rows=cleaned.map(data=>({user_id:owner,id:data.id,data}));
       if(rows.length){const {error}=await client.from('matches').upsert(rows,{onConflict:'user_id,id'});if(error)throw error;}
       await loadMatches(token,owner);
-    }else{matches=[...new Map([...matches,...cleaned].map(m=>[m.id,m])).values()].sort((a,b)=>b.id-a.id);store.set('fog.matches',matches);}
+    }else{matches=sortMatchHistory([...new Map([...matches,...cleaned].map(m=>[m.id,m])).values()]);store.set('fog.matches',matches);}
   }
   function isAdmin(){return !!user?.email_confirmed_at&&user.id==='16a1ddb9-7ebe-4281-a3f7-494c4da72166'&&!loading;}
   async function analytics(days){

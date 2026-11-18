@@ -316,7 +316,10 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v)
 /* ===== state ===== */
 let role="S",build=[],q="";
 try{const m=(location.hash||"").match(/#b=([SK]):(.*)/);if(m){role=m[1];build=decodeURIComponent(m[2]).split("|").filter(n=>PERKS[role].some(p=>p[0]===n)).slice(0,4)}}catch(e){}
-let matches=store.get("fog.matches",[]);
+function sortMatchHistory(records){
+  return records.sort((a,b)=>String(b.date??"").localeCompare(String(a.date??""))||b.id-a.id);
+}
+let matches=sortMatchHistory(store.get("fog.matches",[]));
 
 /* ===== tabs ===== */
 const TABS=[["build","Build planner"],["rand","Random loadout"],["perks","Perks"],["account","Account"],["admin","Admin"],["track","Match tracker"],["observed","Observed builds"],["items","Items & add-ons"],["calc","Gen calculator"]];
@@ -769,7 +772,7 @@ showTab(initialTab());
 </script>
 <script src="dbd-auth-config.js"></script>
 <!-- Version this URL when the stored match format changes, to avoid cached validators dropping fields. -->
-<script src="dbd-accounts.js?v=hardcore-transfer-1"></script>
+<script src="dbd-accounts.js?v=match-history-order-1"></script>
 <script src="dbd-admin.js?v=1"></script>
 </body>
 </html>

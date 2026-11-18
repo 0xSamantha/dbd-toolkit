@@ -40,7 +40,7 @@ async function main(){
   location:{hash:''},sessionStorage:{getItem:k=>session.get(k)||null,removeItem:k=>session.delete(k)},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){return 1},clearInterval(){}});
  const run=s=>vm.runInContext(s,context);
  for(const name of ['dbd-perks.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
- assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=hardcore-transfer-1'));
+ assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=match-history-order-1'));
  run('globalThis.dataLayer=window.dataLayer=[]');
  const inline=[...read('dbd-toolkit.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');run(inline);
  run(read('dbd-accounts.js'));
@@ -181,6 +181,8 @@ async function main(){
  await run('FogAccounts.saveMatch({...fieldRecord,notes:"Keep these notes",perks:["Bond"]})');
  assert.equal(rows.get('account-a:123').data.map,'Coal Tower');
  assert.equal(rows.get('account-a:123').data.opposingKiller,'The Clown');
+ context.newerMatch={...record(110),date:'2026-10-21'};
+ await run('FogAccounts.saveMatch(newerMatch)');
  listener('SIGNED_OUT',null);await flush();
  listener('SIGNED_IN',{user:current});await flush();
  run('editMatch(123)');
@@ -203,7 +205,11 @@ async function main(){
  assert.equal(get('#fm').value,'Coal Tower','Editing notes must preserve the map');
  assert.equal(get('#fk').value,'The Clown','Editing notes must preserve the opposing killer');
  assert.equal(get('#fn').value,'Only the notes changed');
- run('cancelMatchEdit()');await run('FogAccounts.deleteMatch(123)');
+ assert.equal(run('matches.map(m=>m.id).join(",")'),'110,123','Editing notes must preserve chronological order');
+ get('#fd').value='2026-10-22';
+ await run('save()');
+ assert.equal(run('matches.map(m=>m.id).join(",")'),'123,110','Editing a date must move the match to the new day');
+ await run('FogAccounts.deleteMatch(123);');await run('FogAccounts.deleteMatch(110);');
 
  context.observed={...observed,id:11,player:'Account A observed'};await run('FogAccounts.saveObserved(observed)');
  assert(observedRows.has('account-a:11'));assert(!rows.has('account-a:11'));
