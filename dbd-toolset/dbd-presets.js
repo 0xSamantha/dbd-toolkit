@@ -14,7 +14,7 @@ function writePresets(records){
 }
 function saveBuildPreset(slot,name,names=build,r=role){
   if(!Number.isInteger(slot)||slot<1||slot>5)throw Error('Choose preset slot 1–5.');
-  if(!names.length||names.length>4||new Set(names).size!==names.length||names.some(n=>!PERKS[r].some(p=>p[0]===n)))throw Error('Choose one to four different perks for this role in the planner first.');
+  if(!names.length||names.length>4||new Set(names).size!==names.length||names.some(n=>!PERKS[r].some(p=>p[0]===n)))throw Error('Choose one to four different perks for this role.');
   name=name.trim()||RN[r]+' build '+slot;if(name.length>40)throw Error('Use up to 40 characters for a preset name.');
   const next={slot,name,role:r,perks:[...names]};
   writePresets([...readPresets().filter(p=>p.slot!==slot),next].sort((a,b)=>a.slot-b.slot));
@@ -43,8 +43,23 @@ function drawMatchPerks(){
   if(matchPerkDraft.role!==tr)matchPerkDraft={role:tr,enabled:false,perks:[],source:''};
   node.hidden=!matchPerkDraft.enabled;
   if(!matchPerkDraft.enabled){node.innerHTML='';return;}
-  const presets=readPresets().filter(p=>p.role===tr);
-  node.innerHTML=`<label>Use a build<select id="match-build-source"><option value="">Custom / one-off build</option><option value="planner" ${role!==tr||!build.length?'disabled':''}>Current planner build</option>${presets.map(p=>`<option value="preset:${p.slot}">${esc(p.name)}</option>`).join('')}</select></label><div class="slots">${[0,1,2,3].map(i=>`<label>Perk ${i+1}<select id="match-perk-${i}" data-match-perk="${i}"><option value="">Empty / unknown</option>${PERKS[tr].map(([n])=>`<option value="${esc(n)}" ${matchPerkDraft.perks[i]===n?'selected':''}>${esc(n)} — ${esc(perkOwner(n))}</option>`).join('')}</select></label>`).join('')}</div><p class="sub">You can edit any selection without changing a saved preset.</p>`;
+  const saved=readPresets(),presets=saved.filter(p=>p.role===tr);
+  const slots=[1,2,3,4,5];
+  const firstEmpty=slots.find(slot=>!saved.some(p=>p.slot===slot));
+  const disabled=typeof FogAccounts!=='undefined'&&!FogAccounts.canManagePresets();
+  node.innerHTML=`<label>Use a build<select id="match-build-source"><option value="">Custom / one-off build</option><option value="planner" ${role!==tr||!build.length?'disabled':''}>Current planner build</option>${presets.map(p=>`<option value="preset:${p.slot}">${esc(p.name)}</option>`).join('')}</select></label><div class="slots">${[0,1,2,3].map(i=>`<label>Perk ${i+1}<select id="match-perk-${i}" data-match-perk="${i}"><option value="">Empty / unknown</option>${PERKS[tr].map(([n])=>`<option value="${esc(n)}" ${matchPerkDraft.perks[i]===n?'selected':''}>${esc(n)} — ${esc(perkOwner(n))}</option>`).join('')}</select></label>`).join('')}</div><p class="sub">You can edit any selection without changing a saved preset.</p>
+    <details id="match-preset-details"><summary>Save this build</summary>
+      <form id="match-preset-form">
+        <div class="row"><label>Preset slot<select id="match-preset-slot" required>
+          ${firstEmpty===undefined?'<option value="">Choose a slot to replace</option>':''}
+          ${slots.map(slot=>{
+            const preset=saved.find(p=>p.slot===slot);
+            return `<option value="${slot}" ${slot===firstEmpty?'selected':''}>${slot}. ${preset?esc(preset.name)+' ('+RN[preset.role]+')':'Empty slot'}</option>`;
+          }).join('')}
+        </select></label><label>Build name<input id="match-preset-name" maxlength="40" placeholder="e.g. Chase build"></label></div>
+        <button type="submit" class="btn" id="match-preset-save" ${disabled?'disabled':''}>Save to presets</button>
+      </form>
+    </details><p id="match-preset-status" role="status"></p>`;
   $('#match-build-source').value=matchPerkDraft.source;
   $('#match-build-source').onchange=e=>{
     const source=e.target.value;
@@ -53,6 +68,22 @@ function drawMatchPerks(){
       const p=readPresets().find(p=>p.slot===Number(source.slice(7))&&p.role===tr);matchPerkDraft.perks=p?[...p.perks]:[];
     }
     matchPerkDraft.source=source;drawMatchPerks();
+  };
+  const slotInput=$('#match-preset-slot'),saveButton=$('#match-preset-save');
+  slotInput.onchange=()=>{
+    const selected=Number(slotInput.value);
+    saveButton.textContent=readPresets().some(p=>p.slot===selected)?'Replace saved build':'Save to presets';
+  };
+  $('#match-preset-form').onsubmit=e=>{
+    e.preventDefault();
+    try{
+      const slot=Number(slotInput.value),perks=recordedMatchPerks();
+      saveBuildPreset(slot,$('#match-preset-name').value,perks,tr);
+      matchPerkDraft={role:tr,enabled:true,perks,source:'preset:'+slot};
+      drawPresetManager();
+      drawMatchPerks();
+      $('#match-preset-status').textContent='Build saved to preset slot '+slot+'.';
+    }catch(error){$('#match-preset-status').textContent=error.message;}
   };
   node.onchange=e=>{if(e.target.dataset.matchPerk!==undefined){matchPerkDraft.perks[Number(e.target.dataset.matchPerk)]=e.target.value;matchPerkDraft.source='';$('#match-build-source').value='';}};
 }

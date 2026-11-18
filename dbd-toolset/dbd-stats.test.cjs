@@ -186,6 +186,15 @@ run('saveBuildPreset(1,"Changed",["Hope"],"S")');
 assert.equal(run('matchPerkDraft.perks.join("|")'),'Bond|Lithe','Selected loadouts are copies');
 get('#fp').checked=true;get('#match-perk-0').value='Bond';get('#match-perk-1').value='Lithe';get('#match-perk-2').value='';get('#match-perk-3').value='';
 assert.equal(run('recordedMatchPerks().join("|")'),'Bond|Lithe');
+get('#match-preset-slot').value='5';
+get('#match-preset-name').value='From match';
+get('#match-preset-slot').onchange();
+assert.equal(get('#match-preset-save').textContent,'Replace saved build');
+get('#match-preset-form').onsubmit({preventDefault(){}});
+assert.equal(run('readPresets().find(p=>p.slot===5).perks.join("|")'),'Bond|Lithe');
+assert.equal(run('readPresets().find(p=>p.slot===5).name'),'From match');
+assert.equal(run('matchPerkDraft.source'),'preset:5');
+
 get('#match-perk-1').value='Bond';assert.throws(()=>run('recordedMatchPerks()'),/different/);
 get('#fp').checked=false;assert.equal(run('recordedMatchPerks().length'),0);
 run('setTR("K");matchPerkDraft.enabled=true;drawMatchPerks()');
