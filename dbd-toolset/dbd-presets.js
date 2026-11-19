@@ -1,7 +1,7 @@
 /* Five browser-local presets, scoped to the guest or signed-in account.
  * Match records always store a copy of perk names, never a mutable preset reference.
  */
-let presetSlot=1,matchPerkDraft={role:'S',enabled:false,perks:[],source:''};
+let presetSlot=1,matchPerkDraft={role:'S',perks:[],source:''};
 function presetKey(){return typeof FogAccounts==='undefined'?'fog.presets.guest':FogAccounts.presetStorageKey()}
 function readPresets(){
   const records=store.get(presetKey(),[]);
@@ -40,9 +40,7 @@ function drawPresetManager(){
 }
 function drawMatchPerks(){
   const node=$('#match-perk-fields');if(!node)return;
-  if(matchPerkDraft.role!==tr)matchPerkDraft={role:tr,enabled:false,perks:[],source:''};
-  node.hidden=!matchPerkDraft.enabled;
-  if(!matchPerkDraft.enabled){node.innerHTML='';return;}
+  if(matchPerkDraft.role!==tr)matchPerkDraft={role:tr,perks:[],source:''};
   const saved=readPresets(),presets=saved.filter(p=>p.role===tr);
   const slots=[1,2,3,4,5];
   const firstEmpty=slots.find(slot=>!saved.some(p=>p.slot===slot));
@@ -67,7 +65,7 @@ function drawMatchPerks(){
     else if(source.startsWith('preset:')){
       const p=readPresets().find(p=>p.slot===Number(source.slice(7))&&p.role===tr);matchPerkDraft.perks=p?[...p.perks]:[];
     }
-    matchPerkDraft.source=source;drawMatchPerks();
+    matchPerkDraft.source=source;rememberTimedPerks();drawMatchPerks();
   };
   const slotInput=$('#match-preset-slot'),saveButton=$('#match-preset-save');
   slotInput.onchange=()=>{
@@ -79,17 +77,20 @@ function drawMatchPerks(){
     try{
       const slot=Number(slotInput.value),perks=recordedMatchPerks();
       saveBuildPreset(slot,$('#match-preset-name').value,perks,tr);
-      matchPerkDraft={role:tr,enabled:true,perks,source:'preset:'+slot};
+      matchPerkDraft={role:tr,perks,source:'preset:'+slot};
+      rememberTimedPerks();
       drawPresetManager();
       drawMatchPerks();
       $('#match-preset-status').textContent='Build saved to preset slot '+slot+'.';
     }catch(error){$('#match-preset-status').textContent=error.message;}
   };
-  node.onchange=e=>{if(e.target.dataset.matchPerk!==undefined){matchPerkDraft.perks[Number(e.target.dataset.matchPerk)]=e.target.value;matchPerkDraft.source='';$('#match-build-source').value='';}};
+  node.onchange=e=>{if(e.target.dataset.matchPerk!==undefined){matchPerkDraft.perks[Number(e.target.dataset.matchPerk)]=e.target.value;matchPerkDraft.source='';$('#match-build-source').value='';rememberTimedPerks();}};
+}
+function matchPerkSlots(){
+  return [0,1,2,3].map(i=>$('#match-perk-'+i).value);
 }
 function recordedMatchPerks(){
-  if(!$('#fp').checked)return [];
-  const names=[0,1,2,3].map(i=>$('#match-perk-'+i).value).filter(Boolean);
+  const names=matchPerkSlots().filter(Boolean);
   if(new Set(names).size!==names.length)throw Error('Choose different perks in each slot.');
   if(names.some(n=>!PERKS[tr].some(p=>p[0]===n)))throw Error('Choose perks for the selected match role.');
   return names;

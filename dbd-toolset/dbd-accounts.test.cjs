@@ -91,7 +91,6 @@ async function main(){
  assert.equal(run('matches.find(m=>m.id===123).notes'),'','Cancel must not mutate saved records');
  run('editMatch(123)');
  get('#fn').value='Updated later';get('#fm').value='Gas Heaven';
- get('#fp').checked=true;
  get('#match-perk-0').value='Bond';get('#match-perk-1').value='Lithe';
  get('#match-perk-2').value='';get('#match-perk-3').value='';
  await run('save()');
@@ -106,7 +105,6 @@ async function main(){
  run('showTab("track")');
  get('#fc').value='';
  get('#fd').value='2026-10-20';
- get('#fp').checked=true;
  run('startGeneralMatch()');
  assert.equal(run('matchTimer().character'),'');
  get('#fc').value='Meg';
@@ -114,7 +112,10 @@ async function main(){
  assert.equal(run('matchTimer().character'),'Meg Thomas');
  assert.equal(get('#match-result-fields').hidden,true);
  run('drawTrack()');
- assert.equal(get('#match-timed-perks').textContent,'Bond · Lithe');
+ assert.match(get('#match-perk-fields').innerHTML,/Perk 1/);
+ get('#match-perk-1').value='Hope';
+ get('#match-perk-fields').onchange({target:{dataset:{matchPerk:'1'},value:'Hope'}});
+ assert.equal(run('matchTimer().perks[1]'),'Hope');
  run('endGeneralMatch()');
  assert.equal(get('#match-result-fields').hidden,false);
  get('#fr').value='Escaped';
@@ -124,6 +125,7 @@ async function main(){
  await run('save()');
  assert.equal(run('matchTimer()'),null);
  assert.equal(run(`matches.find(m=>m.id===${timedId}).character`),'Meg Thomas');
+ assert.equal(run(`matches.find(m=>m.id===${timedId}).perks.join("|")`),'Bond|Hope');
  assert.equal(run(`matches.find(m=>m.id===${timedId}).observed.character`),'The Clown');
  assert.match(get('#t-track').innerHTML,/class="match-history-actions"[^]*>Edit<\/button>[^]*>Delete<\/button>/);
  assert.equal(run(`Number.isSafeInteger(matches.find(m=>m.id===${timedId}).durationMs)`),true);
@@ -195,7 +197,7 @@ async function main(){
  assert.equal(get('#fk').value,'The Clown','Cloud reload must restore the opposing killer');
  assert.equal(get('#fn').value,'Keep these notes');
  assert.equal(run('matchPerkDraft.perks[0]'),'Bond');
- get('#fp').checked=true;get('#match-perk-0').value='Bond';
+ get('#match-perk-0').value='Bond';
  get('#match-perk-1').value='';get('#match-perk-2').value='';get('#match-perk-3').value='';
  get('#fn').value='Only the notes changed';
  const readsBeforeFocus=userReads;

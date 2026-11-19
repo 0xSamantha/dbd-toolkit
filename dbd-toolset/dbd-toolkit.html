@@ -282,7 +282,7 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 <script src="dbd-items-data.js"></script>
 <script src="dbd-items.js"></script>
 <script src="dbd-observed.js"></script>
-<script src="dbd-presets.js?v=match-save-1"></script>
+<script src="dbd-presets.js?v=match-perks-always-1"></script>
 <script src="dbd-metrics.js"></script>
 <script>
 /* ===== DATA (loaded from dbd-perks.js) ===== */
@@ -517,8 +517,6 @@ function updateMatchTimer(){
   $("#match-elapsed").hidden=!draft;
   if(!editingMatch)$("#match-role").inert=!!draft;
   $("#fd").readOnly=!!draft;
-  $("#match-loadout").hidden=!!draft;
-  $("#match-timed-perks").textContent=draft?.perks.join(" · ")||"";
   if(!draft)return;
   const clock=$("#match-elapsed");
   const tick=()=>{
@@ -531,15 +529,18 @@ function updateMatchTimer(){
 }
 function startGeneralMatch(){
   if(editingMatch||matchTimer())return;
-  let perks;
-  try{perks=recordedMatchPerks()}catch(error){alert(error.message);return}
+  const perks=matchPerkSlots();
   const character=matchName($("#fc").value,tr);
-  store.set(matchTimerKey(),{role:tr,character,perks,date:$("#fd").value||localMatchDate(),startedAt:Date.now()});
+  store.set(matchTimerKey(),{role:tr,character,perks,perkSource:matchPerkDraft.source,date:$("#fd").value||localMatchDate(),startedAt:Date.now()});
   if(!matchTimer())return alert("Could not save the timer in browser storage.");
   $("#fc").value=character;
   $("#fc-suggestions").hidden=true;
   updateMatchTimer();
   $("#match-stop").focus({preventScroll:true});
+}
+function rememberTimedPerks(){
+  const draft=editingMatch?null:matchTimer();
+  if(draft)store.set(matchTimerKey(),{...draft,perks:matchPerkDraft.perks,perkSource:matchPerkDraft.source});
 }
 function rememberTimedCharacter(){
   const draft=editingMatch?null:matchTimer();
@@ -624,22 +625,22 @@ function observedMatchFields(observed){
       list="match-observed-choices" maxlength="120" value="${esc(observed?.perks[i]||"")}"></label>`).join("")}</div></details>`;
 }
 function cancelMatchEdit(){
-  editingMatch=null;matchPerkDraft={role:tr,enabled:false,perks:[],source:""};drawTrack();
+  editingMatch=null;matchPerkDraft={role:tr,perks:[],source:""};drawTrack();
 }
 function editMatch(id){
   const match=matches.find(m=>m.id===id);if(!match)return;
   editingMatch=match;tr=match.role;
-  matchPerkDraft={role:tr,enabled:!!match.perks?.length,perks:[...(match.perks||[])],source:""};
+  matchPerkDraft={role:tr,perks:[...(match.perks||[])],source:""};
   drawTrack();
   $("#fc").focus?.({preventScroll:true});
 }
 
-function setTR(r){if(matchTimer())return;tr=r;matchPerkDraft={role:r,enabled:false,perks:[],source:""};drawTrack()}
+function setTR(r){if(matchTimer())return;tr=r;matchPerkDraft={role:r,perks:[],source:""};drawTrack()}
 async function save(){
   const timerKey=matchTimerKey(),draft=editingMatch?null:matchTimer();
   if(draft&&draft.endedAt==null)return;
   if(draft&&!$("#fr").value){$("#fr").focus();return alert("Choose a match result before saving.")}
-  let perks;try{perks=draft?.perks??recordedMatchPerks()}catch(error){alert(error.message);return;}
+  let perks;try{perks=recordedMatchPerks()}catch(error){alert(error.message);return;}
   if(editingMatch&&!matches.includes(editingMatch)){cancelMatchEdit();alert("This match is no longer available. Please reopen it from history.");return;}
   const rec={id:editingMatch?.id||draft?.startedAt||Date.now(),date:draft?.date||$("#fd").value||localMatchDate(),role:tr,character:matchName($("#fc").value||"",tr)||"Unknown",
     map:matchName($("#fm").value||"","map"),opposingKiller:tr==="S"?matchName($("#fk").value||"","K"):"",
@@ -668,26 +669,25 @@ function drawTrack(){
   trackNeedsRender=false;
   // An account change, reload, or deletion must not leave another log's record editable.
   if(editingMatch&&!matches.includes(editingMatch)){
-    editingMatch=null;matchPerkDraft={role:tr,enabled:false,perks:[],source:""};
+    editingMatch=null;matchPerkDraft={role:tr,perks:[],source:""};
   }
   const timerDraft=editingMatch?null:matchTimer();
   if(timerDraft){
     tr=timerDraft.role;
-    matchPerkDraft={role:tr,enabled:!!timerDraft.perks.length,perks:[...timerDraft.perks],source:""};
+    matchPerkDraft={role:tr,perks:[...timerDraft.perks],source:timerDraft.perkSource||""};
   }
   $("#t-track").innerHTML=`${hardcoreTransferCard(pendingHardcoreMatch())}${editingMatch?'<dialog id="match-edit-dialog" aria-labelledby="match-editor-title" oncancel="event.preventDefault();cancelMatchEdit()">':""}<div class="card" id="match-editor"><h2 id="match-editor-title">${editingMatch?"Edit match — "+esc(editingMatch.character)+" · "+esc(editingMatch.date):"Log a match"}</h2><p class="sub">${esc(typeof FogAccounts!=="undefined"?FogAccounts.modeNote():"Guest mode: matches are saved only in this browser.")}</p>${editingMatch?`<p class="sub">Editing ${RN[tr].toLowerCase()} match. Save changes to update this entry.</p>`:`<div id="match-role">${seg(tr,"setTR")}</div>`}
   <p id="match-history-status" role="status"></p>
   <div class="row">
     <button type="button" class="btn ghost" id="match-start" onclick="startGeneralMatch()">Start timer</button>
     <span id="match-elapsed" role="timer"></span>
-    <span id="match-timed-perks"></span>
     <button type="button" class="btn" id="match-stop" onclick="endGeneralMatch()">End timer</button>
     <button type="button" class="btn ghost" id="match-discard" onclick="discardGeneralTimer()">Discard timer</button>
   </div>
   <div class="row"><label>Date<input type="date" id="fd" value="${localMatchDate()}"></label>
   ${matchNameField("fc",tr==="K"?"Your killer":"Your survivor",tr,tr==="K"?"Type a killer, e.g. clown":"Type a survivor, e.g. Meg")}
   </div>
-  <div id="match-loadout"><label class="effect-toggle"><input type="checkbox" id="fp" ${matchPerkDraft.role===tr&&matchPerkDraft.enabled?"checked":""} aria-controls="match-perk-fields">Record perks used in this match (optional)</label><div id="match-perk-fields" hidden></div></div>
+  <fieldset><legend>Perks used (optional)</legend><div id="match-perk-fields"></div></fieldset>
   <div id="match-result-fields">
   <div class="row">
   ${tr==="S"?matchNameField("fk","Killer faced (optional)","K","e.g. clown"):""}
@@ -711,7 +711,6 @@ function drawTrack(){
   pendingMatchImport=null;
   $("#match-file").onchange=e=>previewMatchFile(e.target.files[0]);
   drawMatchPerks();
-  $("#fp").onchange=e=>{matchPerkDraft.enabled=e.target.checked;drawMatchPerks()};
   if(timerDraft){
     $("#fd").value=timerDraft.date;
     $("#fc").value=timerDraft.character||"";

@@ -88,7 +88,7 @@ const FogAccounts=(()=>{
     // Supabase can emit SIGNED_IN again when the current session is confirmed on focus.
     if(nextOwner===sessionOwner)return;
     sessionOwner=nextOwner;
-    const token=++epoch;matchPerkDraft={role:tr,enabled:false,perks:[],source:''};user=null;matches=[];observedBuilds=[];observedEditing=null;observedReady=false;observedError='';loading=true;refreshMatchTracker();drawAccount();refreshObserved();
+    const token=++epoch;matchPerkDraft={role:tr,perks:[],source:''};user=null;matches=[];observedBuilds=[];observedEditing=null;observedReady=false;observedError='';loading=true;refreshMatchTracker();drawAccount();refreshObserved();
     try{
       if(!session){matches=sortMatchHistory(store.get('fog.matches',[]));observedBuilds=store.get('fog.observedBuilds',[]);loading=false;refreshMatchTracker();drawAccount();refreshObserved();return;}
       const {data,error}=await client.auth.getUser();if(error)throw error;
