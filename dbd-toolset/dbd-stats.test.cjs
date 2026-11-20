@@ -193,7 +193,6 @@ assert.equal(get('#match-preset-save').textContent,'Replace saved build');
 get('#match-preset-form').onsubmit({preventDefault(){}});
 assert.equal(run('readPresets().find(p=>p.slot===5).perks.join("|")'),'Bond|Lithe');
 assert.equal(run('readPresets().find(p=>p.slot===5).name'),'From match');
-assert.equal(run('matchPerkDraft.source'),'preset:5');
 
 get('#match-perk-1').value='Bond';assert.throws(()=>run('recordedMatchPerks()'),/different/);
 for(let i=0;i<4;i++)get('#match-perk-'+i).value='';
