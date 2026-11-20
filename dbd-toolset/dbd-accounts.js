@@ -93,14 +93,14 @@ const FogAccounts=(()=>{
     drawPresetManager();
     if(activeToolkitTab==='track')drawMatchPerks();
   }
-  async function loadPresets(token,owner){
-    const key='fog.presets.'+owner;
-    const migrated=key+'.cloud-v1';
+  async function loadPresets(token,owner,copyGuest=false){
+    const key=copyGuest?'fog.presets.guest':'fog.presets.'+owner;
+    const migrated=copyGuest?'fog.presets.'+owner+'.guest-copy':key+'.cloud-v1';
     try{
       const savedMigration=store.get(migrated,false);
       const synced=new Set(Array.isArray(savedMigration)?savedMigration:[]);
       const signature=p=>JSON.stringify([p.name,p.role,p.perks]);
-      const backup=savedMigration===true?[]:localPresets(key).filter(p=>!synced.has(signature(p)));
+      const backup=!copyGuest&&savedMigration===true?[]:localPresets(key).filter(p=>!synced.has(signature(p)));
       const table=()=>client.from('build_presets');
       const fetchPresets=async()=>{
         const {data,error}=await table().select('slot,name,role,perks').eq('user_id',owner).order('slot');
@@ -134,16 +134,19 @@ const FogAccounts=(()=>{
         for(const preset of backup){
           if(records.some(remote=>sameBuild(preset,remote)))synced.add(signature(preset));
         }
-        if(backup.every(p=>synced.has(signature(p))))store.set(migrated,true);
+        if(copyGuest)store.set(migrated,[...synced]);
+        else if(backup.every(p=>synced.has(signature(p))))store.set(migrated,true);
         else{
           store.set(migrated,[...synced]);
           presetNotice='Some older builds are still backed up in this browser. Free an account slot and reload to bring them over.';
         }
       }
       cloudPresets=records.sort((a,b)=>a.slot-b.slot);
+      if(copyGuest)return backup.filter(p=>!synced.has(signature(p))).length;
     }catch(error){
+      if(copyGuest)throw error;
       if(token===epoch)presetError='Could not sync saved builds. Browser presets are still available. Reload to retry.';
-    }finally{if(token===epoch)refreshPresets();}
+    }finally{if(token===epoch&&!copyGuest)refreshPresets();}
   }
   function canManagePresets(){return !loading&&!busy&&!presetBusy&&(!user||cloudPresets!==null);}
   async function changePreset(slot,preset){
@@ -173,7 +176,9 @@ const FogAccounts=(()=>{
       const {data,error}=await client.auth.getUser();if(error)throw error;
       if(token!==epoch)return;
       if(!data.user?.email_confirmed_at)throw Error('Please verify your email using the link in your inbox, then sign in.');
-      user=data.user;await Promise.all([loadPresets(token,user.id),loadMatches(token,user.id)]);if(token===epoch)await loadObserved(token,user.id);
+      user=data.user;
+      await Promise.all([loadPresets(token,user.id),loadMatches(token,user.id)]);
+      if(token===epoch){drawAccount();await loadObserved(token,user.id);}
     }catch(error){if(token===epoch){user=null;matches=[];loading=true;notice('Could not load your account: '+error.message+' Sign out to return to guest mode.');refreshMatchTracker();}}
   }
   async function saveMatch(record, { newOnly = false } = {}){
@@ -189,8 +194,9 @@ const FogAccounts=(()=>{
       if(error)throw error;
     }
     if(token!==epoch)throw Error('Account changed. Reopen your account before saving again.');
-    matches=sortMatchHistory([rec,...(newOnly?history:matches).filter(m=>m.id!==rec.id)]);
-    if(!owner)store.set('fog.matches',matches);
+    const updated=sortMatchHistory([rec,...(newOnly?history:matches).filter(m=>m.id!==rec.id)]);
+    if(!owner)localStorage.setItem('fog.matches',JSON.stringify(updated));
+    matches=updated;
   }
   async function deleteMatch(id){
     requireReady();const owner=user?.id,token=epoch;
@@ -232,7 +238,10 @@ const FogAccounts=(()=>{
     <label>New password<input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
     <label>Confirm new password<input name="confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
     <p class="sub">Use at least 12 characters.</p>
-    <button class="btn" type="submit" ${busy?'disabled':''}>Update password</button></form>`:!configured?'<p>Online accounts are not connected yet. The planner, perk library and guest match log are available.</p>':!online?'<p>Account service is loading or unavailable. Guest features still work.</p>':user?`<p>Signed in as <b>${esc(displayName||user.email)}</b>. Email verified.${displayName?`<br><small>${esc(user.email)}</small>`:""}</p><div class="row"><button class="btn" data-account="signout">Sign out</button><button class="btn ghost" data-account="upload" ${loading||busy?'disabled':''}>Copy this browser’s guest matches into my account</button></div><p class="sub">Copying keeps the guest backup in this browser and merges records by match ID. Other users cannot see your cloud history.</p>`:`<form id="account-form"><label>Display name (optional, for registration)<input name="displayName" type="text" autocomplete="nickname" maxlength="40" placeholder="What should we call you?"></label><label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label><label>Password<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><p class="sub">Display names can be up to 40 characters and are optional. Sign in using your email. Use at least 12 characters when registering. Open the verification link in your email before signing in.</p><div class="row"><button class="btn" type="submit" data-mode="signin" ${busy?'disabled':''}>Sign in</button><button class="btn ghost" type="submit" data-mode="signup" ${busy?'disabled':''}>Register</button><button class="btn ghost" type="button" data-account="resend" ${busy?'disabled':''}>Resend verification email</button><button class="btn ghost" type="button" data-account="reset" ${busy?'disabled':''}>Forgot password?</button></div></form>${loading?'<button class="btn ghost" data-account="signout">Sign out / return to guest mode</button>':''}`}</div>`;
+    <button class="btn" type="submit" ${busy?'disabled':''}>Update password</button></form>`:!configured?'<p>Online accounts are not connected yet. The planner, perk library and guest match log are available.</p>':!online?'<p>Account service is loading or unavailable. Guest features still work.</p>':user?`<p>Signed in as <b>${esc(displayName||user.email)}</b>. Email verified.${displayName?`<br><small>${esc(user.email)}</small>`:""}</p><div class="row"><button class="btn" data-account="signout">Sign out</button><button class="btn ghost" data-account="upload" ${loading||busy?'disabled':''}>Copy this browser’s guest matches into my account</button></div><p class="sub">Copying keeps the guest backup in this browser and merges records by match ID. Other users cannot see your cloud history.</p>
+    <h3>Saved builds</h3><p class="sub">${esc(presetStatus())}</p>
+    ${cloudPresets?.length?`<ul>${cloudPresets.map(p=>`<li>${esc(p.name)} · ${esc(p.perks.join(', '))}</li>`).join('')}</ul>`:cloudPresets?'<p>No saved builds in this account yet.</p>':''}
+    ${localPresets('fog.presets.guest').length?`<button class="btn ghost" data-account="copy-presets" ${canManagePresets()?'':'disabled'}>Copy this browser’s guest builds into my account</button>`:''}`:`<form id="account-form"><label>Display name (optional, for registration)<input name="displayName" type="text" autocomplete="nickname" maxlength="40" placeholder="What should we call you?"></label><label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label><label>Password<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><p class="sub">Display names can be up to 40 characters and are optional. Sign in using your email. Use at least 12 characters when registering. Open the verification link in your email before signing in.</p><div class="row"><button class="btn" type="submit" data-mode="signin" ${busy?'disabled':''}>Sign in</button><button class="btn ghost" type="submit" data-mode="signup" ${busy?'disabled':''}>Register</button><button class="btn ghost" type="button" data-account="resend" ${busy?'disabled':''}>Resend verification email</button><button class="btn ghost" type="button" data-account="reset" ${busy?'disabled':''}>Forgot password?</button></div></form>${loading?'<button class="btn ghost" data-account="signout">Sign out / return to guest mode</button>':''}`}</div>`;
     const recoveryForm=$('#password-recovery-form');
     if(recoveryForm)recoveryForm.onsubmit=async e=>{
       e.preventDefault();
@@ -272,7 +281,7 @@ const FogAccounts=(()=>{
           const {error}=await client.auth.signInWithPassword({email,password});if(error)throw error;
           notice('Signed in. Loading your private matches…');
         }
-      }catch(error){notice(error.message);}finally{busy=false;drawAccount();}
+      }catch(error){notice(error.message);}finally{busy=false;drawAccount();if(activeToolkitTab==='track')drawMatchPerks();}
     };
     node.onclick=async e=>{
       const action=e.target.closest('[data-account]')?.dataset.account;if(!action||busy)return;
@@ -280,6 +289,19 @@ const FogAccounts=(()=>{
       try{
         if(action==='signout'){const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;message='Signed out.';await changeSession(null);}
         if(action==='upload'){await importMatches(store.get('fog.matches',[]));notice('Guest matches copied into your account. The local backup was kept.');}
+        if(action==='copy-presets'){
+          if(!user||!canManagePresets())return;
+          const token=epoch;
+          presetBusy=true;drawAccount();
+          try{
+            const remaining=await loadPresets(token,user.id,true);
+            if(token===epoch)message=remaining?'Some guest builds still need a free account slot. Your browser copies were kept.':'Guest builds copied into your account. Your browser copies were kept.';
+          }catch(error){
+            if(token===epoch)message='Could not copy guest builds: '+error.message;
+          }finally{
+            if(token===epoch){presetBusy=false;refreshPresets();drawAccount();}
+          }
+        }
         if(action==='reset'){
           if(!email||!form.elements.email.checkValidity()){notice('Enter your account email, then select Forgot password again.');return;}
           busy=true;notice('Requesting a reset link…');

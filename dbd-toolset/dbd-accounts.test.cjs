@@ -40,7 +40,7 @@ async function main(){
   location:{hash:''},sessionStorage:{getItem:k=>session.get(k)||null,removeItem:k=>session.delete(k)},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){return 1},clearInterval(){}});
  const run=s=>vm.runInContext(s,context);
  for(const name of ['dbd-perks.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
- assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=cloud-presets-1'));
+ assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=cloud-presets-2'));
  run('globalThis.dataLayer=window.dataLayer=[]');
  const inline=[...read('dbd-toolkit.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');run(inline);
  run(read('dbd-accounts.js'));
@@ -58,6 +58,11 @@ async function main(){
 
  const flush=async()=>{for(let i=0;i<20;i++){await Promise.resolve();while(tasks.length)tasks.shift()();}};
  await flush();
+ get('#mod').checked=true;
+ run('showTab("rand")');
+ const randomLoadout=get('#t-rand').innerHTML;
+ assert.match(randomLoadout,/class="random-challenge"/);
+ assert(randomLoadout.indexOf('class="random-challenge"')<randomLoadout.indexOf('class="slots"'));
  assert(get('#t-account').innerHTML.includes('Forgot password?'));
  await get('#t-account').onclick({target:{closest:()=>({dataset:{account:'reset'}})}});
  assert.deepEqual(resetRequest,{email:'test@example.com',redirectTo:'http://localhost:8000/dbd-toolkit.html'});
@@ -95,6 +100,7 @@ async function main(){
  get('#match-perk-2').value='';get('#match-perk-3').value='';
  await run('save()');
  assert.equal(run('matches.filter(m=>m.id===123).length'),1,'Editing must update, not duplicate');
+ assert.equal(get('#match-history-status').textContent,'Match updated with 2 perks.');
  assert.equal(run('matches.find(m=>m.id===123).notes'),'Updated later');
  assert.equal(run('matches.find(m=>m.id===123).map'),'Gas Heaven');
  assert.equal(run('matches.find(m=>m.id===123).perks.join(",")'),'Bond,Lithe');
@@ -165,10 +171,17 @@ async function main(){
  listener('SIGNED_OUT',null);await flush();
  listener('SIGNED_IN',{user:current});await flush();
  assert.equal(run('readPresets().map(p=>p.name).join("|")'),'A build|Laptop build|Older local build');
+ const copyGuestPresets=()=>get('#t-account').onclick({target:{closest:()=>({dataset:{account:'copy-presets'}})}});
+ assert.match(get('#t-account').innerHTML,/Copy this browser’s guest builds/);
+ await copyGuestPresets();
+ assert.equal(presetRows.get('account-a:4').name,'Guest build','Copy should use a free slot without replacing account builds');
+ assert.equal(JSON.parse(stored.get('fog.presets.guest'))[0].name,'Guest build');
+ await copyGuestPresets();
+ assert.equal(presetRows.size,4,'Copying again must not duplicate builds');
  stored.delete('fog.presets.account-a');
  listener('SIGNED_OUT',null);await flush();
  listener('SIGNED_IN',{user:current});await flush();
- assert.equal(run('readPresets().map(p=>p.name).join("|")'),'A build|Laptop build|Older local build');
+ assert.equal(run('readPresets().map(p=>p.name).join("|")'),'A build|Laptop build|Older local build|Guest build');
  assert.equal(run('matches.length'),0,'Guest logs must not be silently uploaded');
  assert(get('#t-account').innerHTML.includes('&lt;Samantha&gt;'));
  assert(!get('#t-account').innerHTML.includes('<Samantha>')); 
