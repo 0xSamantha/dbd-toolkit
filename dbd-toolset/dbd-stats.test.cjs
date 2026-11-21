@@ -208,6 +208,8 @@ assert.equal(run('matchingNames("[.*","K").length'),44,'Search input is literal 
 assert.equal(run('matchName("unknown custom map","map")'),"unknown custom map");
 assert.equal(run('matchChoices("S").length'),54);
 run('tr="S";drawTrack()');
+assert(get('#t-track').innerHTML.includes('Win streaks and queue stats'));
+assert(get('#t-track').innerHTML.includes('Solo vs team'));
 assert(get('#t-track').innerHTML.includes('Killer faced (optional)'));
 assert(get('#t-track').innerHTML.includes('Map (optional)'));
 run('tr="K";drawTrack()');
