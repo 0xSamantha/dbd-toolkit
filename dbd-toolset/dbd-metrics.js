@@ -32,6 +32,37 @@ function matchMetricsHTML(records){
   const card=(name,value,note='')=>`<div class="stat"><span>${name}</span><b>${value}</b><small>${note}</small></div>`;
   return `<div class="card"><h2>Total match metrics</h2><div class="stats">${card('Matches',m.total,m.survivors+' survivor · '+m.killers+' killer')}${card('Wins',m.wins)}${card('Losses',m.losses,'Includes surrenders')}${card('Draws',m.draws)}${card('Surrenders',m.surrenders,'Already included in losses')}${card('Win rate',percent(m.winRate),'Wins ÷ all matches, including draws')}${card('Survivor escape rate',percent(m.escapeRate))}${card('Average killer kills',m.averageKills===null?'–':m.averageKills.toFixed(2),'Known kill counts only')}</div><p class="sub">Killer convention: 0–1 kills = loss, 2 = draw, 3–4 = win. Survivor draws can be recorded explicitly. Surrender always counts as a loss.</p></div>`;
 }
+function summarizeWinStreaks(records){
+  const chronological=[...records].sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  let current=0,best=0;
+  for(const match of chronological){
+    current=matchOutcome(match)==='win'?current+1:0;
+    best=Math.max(best,current);
+  }
+  return {current,best};
+}
+function streakAndQueueMetricsHTML(records,queueLabels){
+  const {current,best}=summarizeWinStreaks(records);
+  const rows=Object.entries(queueLabels).map(([queue,label])=>{
+    const {total,wins,losses,draws,winRate}=summarizeMatches(records.filter(match=>match.queue===queue));
+    const rate=winRate===null?'—':Math.round(winRate*100)+'%';
+    return `<tr><th scope="row">${label}</th><td>${total}</td><td>${wins}</td><td>${losses}</td><td>${draws}</td><td>${rate}</td></tr>`;
+  });
+  return `<section class="card" aria-labelledby="streak-queue-title">
+    <h2 id="streak-queue-title">Win streaks and queue stats</h2>
+    <div class="stats">
+      <div class="stat"><span>Current win streak</span><b>${current}</b></div>
+      <div class="stat"><span>Best win streak</span><b>${best}</b></div>
+    </div>
+    <p class="sub">Streaks follow match dates across both roles. A loss or draw ends a streak.</p>
+    <h3 id="queue-stats-title">Solo vs team</h3>
+    <div class="tablewrap"><table aria-labelledby="queue-stats-title">
+      <thead><tr><th scope="col">Queue</th><th scope="col">Matches</th><th scope="col">Wins</th><th scope="col">Losses</th><th scope="col">Draws</th><th scope="col">Win rate</th></tr></thead>
+      <tbody>${rows.join('')}</tbody>
+    </table></div>
+    <p class="sub">Queue stats use the tag saved with each match. Edit a match in History to add or change its tag.</p>
+  </section>`;
+}
 function advancedMatchMetricsHTML(records){
   const grouped=new Map(),perkUse=new Map(),distribution=[0,0,0,0,0];
   for(const m of records){

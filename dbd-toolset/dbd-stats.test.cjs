@@ -222,6 +222,8 @@ assert.equal(run('matchName("Art the Clown","K")'),"The Terrifier");
 assert.equal(run('matchName("Sienna","S")'),"Sienna Shaw");
 assert.equal(run('matchName("Hartshorne","map")'),"Hartshorne Mall");
 run('tr="S";drawTrack()');
+assert(get('#t-track').innerHTML.includes('Win streaks and queue stats'));
+assert(get('#t-track').innerHTML.includes('Solo vs team'));
 assert(get('#t-track').innerHTML.includes('Killer faced (optional)'));
 assert(get('#t-track').innerHTML.includes('Map (optional)'));
 run('tr="K";drawTrack()');
