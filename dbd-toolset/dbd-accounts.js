@@ -3,7 +3,7 @@
  */
 const FogAccounts=(()=>{
   let client=null,user=null,loading=false,busy=false,epoch=0,message='';
-  let sessionOwner;
+  let sessionOwner,cloudPresets=null,presetError='',presetNotice='',presetBusy=false;
   let observedReady=false,observedError='',recoverySession=null;
   const config=window.FOG_AUTH_CONFIG||{};
   const configured=!!(config.url&&config.publishableKey&&config.redirectUrl);
@@ -83,18 +83,97 @@ const FogAccounts=(()=>{
     }else{observedBuilds=[...new Map([...observedBuilds,...clean].map(b=>[b.id,b])).values()];store.set('fog.observedBuilds',observedBuilds);}
   }
   async function copyGuestObserved(){if(!user)throw Error('Sign in first to copy your guest build log.');await importObserved(store.get('fog.observedBuilds',[]));}
+  function presetStatus(){
+    if(presetError)return presetError;
+    if(loading||(user&&cloudPresets===null)||presetBusy)return 'Loading or saving builds. Please wait.';
+    if(presetNotice)return presetNotice;
+    return user?'Save up to five builds across devices.':'Save up to five builds in this browser. Sign in to sync across devices.';
+  }
+  function refreshPresets(){
+    drawPresetManager();
+    if(activeToolkitTab==='track')drawMatchPerks();
+  }
+  async function loadPresets(token,owner){
+    const key='fog.presets.'+owner;
+    const migrated=key+'.cloud-v1';
+    try{
+      const savedMigration=store.get(migrated,false);
+      const synced=new Set(Array.isArray(savedMigration)?savedMigration:[]);
+      const signature=p=>JSON.stringify([p.name,p.role,p.perks]);
+      const backup=savedMigration===true?[]:localPresets(key).filter(p=>!synced.has(signature(p)));
+      const table=()=>client.from('build_presets');
+      const fetchPresets=async()=>{
+        const {data,error}=await table().select('slot,name,role,perks').eq('user_id',owner).order('slot');
+        if(error)throw error;
+        return data;
+      };
+      let records=await fetchPresets();
+      if(token!==epoch)return;
+      if(backup.length){
+        const sameBuild=(a,b)=>a.name===b.name&&a.role===b.role&&JSON.stringify(a.perks)===JSON.stringify(b.perks);
+        const additions=[],taken=new Set(records.map(p=>p.slot));
+        const pending=backup.filter(p=>!records.some(remote=>sameBuild(p,remote)));
+        for(const preset of pending.filter(p=>!taken.has(p.slot))){
+          additions.push(preset);
+          taken.add(preset.slot);
+        }
+        for(const preset of pending.filter(p=>!additions.includes(p))){
+          const free=[1,2,3,4,5].find(slot=>!taken.has(slot));
+          if(free===undefined)break;
+          additions.push({...preset,slot:free});
+          taken.add(free);
+        }
+        if(additions.length){
+          const {error}=await table().upsert(additions.map(p=>({...p,user_id:owner})),{
+            onConflict:'user_id,slot',ignoreDuplicates:true
+          });
+          if(error)throw error;
+          records=await fetchPresets();
+        }
+        if(token!==epoch)return;
+        for(const preset of backup){
+          if(records.some(remote=>sameBuild(preset,remote)))synced.add(signature(preset));
+        }
+        if(backup.every(p=>synced.has(signature(p))))store.set(migrated,true);
+        else{
+          store.set(migrated,[...synced]);
+          presetNotice='Some older builds are still backed up in this browser. Free an account slot and reload to bring them over.';
+        }
+      }
+      cloudPresets=records.sort((a,b)=>a.slot-b.slot);
+    }catch(error){
+      if(token===epoch)presetError='Could not sync saved builds. Browser presets are still available. Reload to retry.';
+    }finally{if(token===epoch)refreshPresets();}
+  }
+  function canManagePresets(){return !loading&&!busy&&!presetBusy&&(!user||cloudPresets!==null);}
+  async function changePreset(slot,preset){
+    if(!user||!cloudPresets||!canManagePresets())throw Error(presetStatus());
+    const owner=user.id,token=epoch;
+    presetBusy=true;
+    try{
+      const table=client.from('build_presets');
+      const {error}=await (preset?table.upsert({...preset,user_id:owner},{onConflict:'user_id,slot'}):
+        table.delete().eq('user_id',owner).eq('slot',slot));
+      if(error)throw error;
+      if(token!==epoch)throw Error('The account changed while saving the build.');
+      cloudPresets=cloudPresets.filter(p=>p.slot!==slot);
+      if(preset)cloudPresets.push(preset);
+      cloudPresets.sort((a,b)=>a.slot-b.slot);
+    }finally{if(token===epoch)presetBusy=false;}
+  }
   async function changeSession(session){
     const nextOwner=session?.user?.id??null;
     // Supabase can emit SIGNED_IN again when the current session is confirmed on focus.
     if(nextOwner===sessionOwner)return;
     sessionOwner=nextOwner;
+    cloudPresets=null;presetError='';presetNotice='';presetBusy=false;
     const token=++epoch;matchPerkDraft={role:tr,perks:[],source:''};user=null;matches=[];observedBuilds=[];observedEditing=null;observedReady=false;observedError='';loading=true;refreshMatchTracker();drawAccount();refreshObserved();
     try{
       if(!session){matches=sortMatchHistory(store.get('fog.matches',[]));observedBuilds=store.get('fog.observedBuilds',[]);loading=false;refreshMatchTracker();drawAccount();refreshObserved();return;}
       const {data,error}=await client.auth.getUser();if(error)throw error;
       if(token!==epoch)return;
       if(!data.user?.email_confirmed_at)throw Error('Please verify your email using the link in your inbox, then sign in.');
-      user=data.user;await loadMatches(token,user.id);if(token===epoch)await loadObserved(token,user.id);
+      user=data.user;await Promise.all([loadPresets(token,user.id),loadMatches(token,user.id)]);if(token===epoch)await loadObserved(token,user.id);
     }catch(error){if(token===epoch){user=null;matches=[];loading=true;notice('Could not load your account: '+error.message+' Sign out to return to guest mode.');refreshMatchTracker();}}
   }
   async function saveMatch(record, { newOnly = false } = {}){
@@ -242,6 +321,6 @@ const FogAccounts=(()=>{
       drawAccount();
     }catch(error){notice(error.message);}
   }
-  return {isAdmin,analytics,presetStorageKey:()=>user?'fog.presets.'+user.id:'fog.presets.guest',canManagePresets:()=>!loading&&!busy,init,drawAccount,modeNote,saveMatch,deleteMatch,importMatches,validateMatch,observedMode,saveObserved,deleteObserved,importObserved,copyGuestObserved};
+  return {isAdmin,analytics,presetStorageKey:()=>user?'fog.presets.'+user.id:'fog.presets.guest',canManagePresets,presetStatus,accountPresets:()=>user?cloudPresets:null,changePreset,init,drawAccount,modeNote,saveMatch,deleteMatch,importMatches,validateMatch,observedMode,saveObserved,deleteObserved,importObserved,copyGuestObserved};
 })();
 FogAccounts.init();

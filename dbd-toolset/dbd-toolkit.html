@@ -240,6 +240,8 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 #match-edit-dialog{width:min(760px,calc(100% - 24px));max-height:90dvh;overflow-y:auto;padding:0;border:1px solid var(--edge);background:var(--face);color:var(--tx);font:inherit}
 #match-edit-dialog::backdrop{background:#000b}
 #match-edit-dialog .card{margin:0;border:0}
+#match-elapsed{color:#ff8585;font-weight:bold}
+.random-challenge{margin:0 0 12px;padding:8px 10px;background:var(--panel);border-left:3px solid var(--blood);overflow-wrap:anywhere}
 .match-name-field{position:relative;flex:1 1 180px;min-width:0}
 .match-name-field input{width:100%;box-sizing:border-box}
 @media(max-width:600px){
@@ -272,17 +274,19 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 <section id="t-observed" hidden></section>
 <section id="t-items" hidden></section>
 
-<footer>Unofficial fan project made by @tradersamz. Not affiliated with or endorsed by Behaviour Interactive. Dead by Daylight and all related names belong to their owners. Perk data: patch 10.2.0, build 10.2.0-3840818 (extracted October 7, 2026), from <a href="https://dbd.source.gs/perks/">dbd.source.gs</a>. <a href="https://x.com/tradersamz" target="_blank" rel="noopener noreferrer">Follow Me on X!</a> Enjoying the toolkit? <a href="https://venmo.com/samchavoya" target="_blank" rel="noopener noreferrer">Leave a tip on Venmo</a>.</footer>
+<footer>Unofficial fan project made by @tradersamz. Not affiliated with or endorsed by Behaviour Interactive. Dead by Daylight and all related names belong to their owners. Perk data: patch 10.2.0, build 10.2.0-3840818 (extracted October 7, 2026), from <a href="https://dbd.source.gs/perks/">dbd.source.gs</a>. Terrifier chapter perks use the <a href="https://support.deadbydaylight.com/hc/en-us/articles/55705675383956-10-3-0-Patch-Notes">10.3.0 patch notes</a>. <a href="https://x.com/tradersamz" target="_blank" rel="noopener noreferrer">Follow Me on X!</a> Enjoying the toolkit? <a href="https://venmo.com/samchavoya" target="_blank" rel="noopener noreferrer">Leave a tip on Venmo</a>.</footer>
 </div>
 </main>
 <div id="tip" role="tooltip" tabindex="0" hidden></div>
 <div class="taskbar"><button class="start" onclick="showTab('build');window.scrollTo(0,0)">Start</button><div class="task" id="tbl">Build planner</div><div class="clock" id="clk"></div></div>
 <script src="dbd-perks.js"></script>
+<script src="dbd-roster.js"></script>
+<script src="dbd-perks-terrifier.js"></script>
 <script src="dbd-stats.js"></script>
 <script src="dbd-items-data.js"></script>
 <script src="dbd-items.js"></script>
 <script src="dbd-observed.js"></script>
-<script src="dbd-presets.js?v=match-perks-always-1"></script>
+<script src="dbd-presets.js?v=cloud-presets-1"></script>
 <script src="dbd-metrics.js"></script>
 <script>
 /* ===== DATA (loaded from dbd-perks.js) ===== */
@@ -290,7 +294,7 @@ const PERKS={S:[],K:[]};
 const DESC=Object.create(null);
 const PERK_OWNERS=Object.create(null);
 const ICONS=Object.create(null);
-DBD_PERK_DATA.perks.forEach(perk=>{
+DBD_PERKS.forEach(perk=>{
   const role=perk.role==="survivor"?"S":perk.role==="killer"?"K":null;
   if(!role)return;
   PERKS[role].push([perk.name,perk.tags.join(", ")]);
@@ -299,7 +303,7 @@ DBD_PERK_DATA.perks.forEach(perk=>{
   ICONS[perk.name]=perk.icon;
 });
 Object.values(PERKS).forEach(list=>list.sort((a,b)=>a[0].localeCompare(b[0])));
-const KILLERS=DBD_PERK_DATA.killers;
+const KILLERS=DBD_KILLER_NAMES.map(name=>name.replace(/^The /,""));
 const CHALLENGES={S:["No healing perks","Only green or lower items","Hatch is not allowed","Do every gen skill check on purpose","Never crouch","Unhook someone first, no matter what"],K:["No gen-regression perks","Only brown or yellow add-ons","Down everyone before hooking anyone","Never use your power in the first chase","Tunnel nobody","Hook each survivor exactly once before the third hook"]};
 /* Match record (the manual form and a future screenshot reader both produce this):
 {id, date, role:"S"|"K", character, result:"Escaped"|"Died" (S) or kills 0-4 (K), perks:[names], notes} */
@@ -435,7 +439,7 @@ function drawLibrary(){
 }
 function drawLibraryResults(){
   const query=searchText(libraryQuery);
-  const perks=DBD_PERK_DATA.perks.filter(p=>p.role===(libraryRole==="S"?"survivor":"killer")&&searchText([p.name,p.meta.owner,p.tags.join(" "),p.desc].join(" ")).includes(query)).sort((a,b)=>a.name.localeCompare(b.name));
+  const perks=DBD_PERKS.filter(p=>p.role===(libraryRole==="S"?"survivor":"killer")&&searchText([p.name,p.meta.owner,p.tags.join(" "),p.desc].join(" ")).includes(query)).sort((a,b)=>a.name.localeCompare(b.name));
   $("#library-results").innerHTML=perks.length?perks.map(p=>`<details class="library-perk"><summary>${perkIcon(p.name)}<span>${esc(p.name)}<small>${esc(p.meta.owner)}</small></span></summary><p>${esc(p.desc)}</p><p class="tag">${esc(p.tags.join(", "))}</p></details>`).join(""):"<p>No perks match your search.</p>";
 }
 
@@ -450,18 +454,20 @@ function drawRand(){
   if(roll&&wantMod&&!roll.mod)roll.mod=pick(CHALLENGES[rr],1)[0];
   $("#t-rand").innerHTML=`<div class="card"><h2>Random loadout</h2>${seg(rr,"setRR")}
   <div class="row"><label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="mod" ${wantMod?"checked":""} onchange="doRoll()">Add a challenge</label><button class="btn" onclick="doRoll()">Roll again</button></div>
-  ${roll?`${roll.ch?`<p class="big">${esc(roll.ch)}</p>`:""}<div class="slots">${roll.perks.map(p=>`<div class="slot full">${perkInfo(p)}${perkIcon(p)}<span>${esc(p)}</span><small class="perk-owner">${esc(perkOwner(p))}</small></div>`).join("")}</div>${buildNotesHTML(roll.perks,roll.r)}${wantMod&&roll.mod?`<p><b>Challenge:</b> ${esc(roll.mod)}</p>`:""}<button class="btn ghost" onclick="toBuilder()">Open in build planner</button>`:"<p class='sub'>Press Roll again to get your first loadout.</p>"}</div>`;
+  ${roll?`${wantMod&&roll.mod?`<p class="random-challenge"><b>Challenge:</b> ${esc(roll.mod)}</p>`:""}${roll.ch?`<p class="big">${esc(roll.ch)}</p>`:""}<div class="slots">${roll.perks.map(p=>`<div class="slot full">${perkInfo(p)}${perkIcon(p)}<span>${esc(p)}</span><small class="perk-owner">${esc(perkOwner(p))}</small></div>`).join("")}</div>${buildNotesHTML(roll.perks,roll.r)}<button class="btn ghost" onclick="toBuilder()">Open in build planner</button>`:"<p class='sub'>Press Roll again to get your first loadout.</p>"}</div>`;
 }
 
 /* ===== match tracker ===== */
-// Map names: https://dbd.source.gs/maps/ (build 10.2.0); duplicate tile layouts share a name.
-const MATCH_MAPS=["Ironworks of Misery","Coal Tower","Suffocation Pit","Shelter Woods","Groaning Storehouse","The Thompson House","Torment Creek","Rancid Abattoir","Rotten Fields","Fractured Cowshed","Wretched Shop","Blood Lodge","Azarov’s Resting Place","Wreckers' Yard","Gas Heaven","Father Campbell's Chapel","Disturbed Ward","Lampkin Lane","Treatment Theater","Mother's Dwelling","The Temple of Purgation","The Pale Rose","Grim Pantry","Badham Preschool I","Badham Preschool II","Badham Preschool III","Badham Preschool IV","Badham Preschool V","The Game","Family Residence","Sanctum of Wrath","Mount Ormond Resort","Ormond Lake Mine","The Underground Complex","Dead Dawg Saloon","Midwich Elementary School","Raccoon City Police Station East Wing","Raccoon City Police Station West Wing","Eyrie of Crows","Dead Sands","Garden of Joy","Fallen Refuge","Freddy Fazbear's Pizza","Greenville Square","The Shattered Square","Forgotten Ruins","Toba Landing","Nostromo Wreckage","Trickster's Delusion"];
+// Map names: https://dbd.source.gs/maps/ (build 10.2.0) and the 10.3.0 patch notes; duplicate tile layouts share a name.
+const MATCH_MAPS=["Ironworks of Misery","Coal Tower","Suffocation Pit","Shelter Woods","Groaning Storehouse","The Thompson House","Torment Creek","Rancid Abattoir","Rotten Fields","Fractured Cowshed","Wretched Shop","Blood Lodge","Azarov’s Resting Place","Wreckers' Yard","Gas Heaven","Father Campbell's Chapel","Disturbed Ward","Lampkin Lane","Treatment Theater","Mother's Dwelling","The Temple of Purgation","The Pale Rose","Grim Pantry","Badham Preschool I","Badham Preschool II","Badham Preschool III","Badham Preschool IV","Badham Preschool V","The Game","Family Residence","Sanctum of Wrath","Mount Ormond Resort","Ormond Lake Mine","The Underground Complex","Dead Dawg Saloon","Midwich Elementary School","Raccoon City Police Station East Wing","Raccoon City Police Station West Wing","Eyrie of Crows","Dead Sands","Garden of Joy","Fallen Refuge","Freddy Fazbear's Pizza","Greenville Square","The Shattered Square","Forgotten Ruins","Toba Landing","Nostromo Wreckage","Trickster's Delusion","Hartshorne Mall"];
 const matchSearchText=value=>searchText(value).replace(/[^a-z0-9]/g,"");
+const isTerrifierAlias=(key,kind)=>kind==="K"&&["art","arttheclown","arttheterrifier"].includes(key);
 function matchChoices(kind){
-  return (kind==="map"?MATCH_MAPS:kind==="K"?KILLERS.map(n=>"The "+n):[...new Set(DBD_PERK_DATA.perks.filter(p=>p.role==="S"||p.role==="survivor").map(p=>p.meta?.owner).filter(n=>n&&n!=="General perk"))]).slice().sort((a,b)=>a.localeCompare(b));
+  return (kind==="map"?MATCH_MAPS:kind==="K"?DBD_KILLER_NAMES:DBD_SURVIVOR_NAMES).slice().sort((a,b)=>a.localeCompare(b));
 }
 function matchingNames(value,kind){
   const needle=matchSearchText(value);
+  if(isTerrifierAlias(needle,kind))return [DBD_TERRIFIER];
   return matchChoices(kind).filter(name=>matchSearchText(name).includes(needle));
 }
 function matchName(value,kind){
@@ -781,7 +787,7 @@ showTab(initialTab());
 </script>
 <script src="dbd-auth-config.js"></script>
 <!-- Version this URL when the stored match format changes, to avoid cached validators dropping fields. -->
-<script src="dbd-accounts.js?v=match-history-order-1"></script>
+<script src="dbd-accounts.js?v=cloud-presets-1"></script>
 <script src="dbd-admin.js?v=1"></script>
 </body>
 </html>

@@ -5,6 +5,8 @@ const assert=require('node:assert/strict');
 const context=vm.createContext({});
 const read=name=>fs.readFileSync(path.join(__dirname,name),'utf8');
 vm.runInContext(read('dbd-perks.js'),context);
+vm.runInContext(read('dbd-roster.js'),context);
+vm.runInContext(read('dbd-perks-terrifier.js'),context);
 vm.runInContext(read('dbd-stats.js'),context);
 for(const name of ['dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
 let checks=0;
@@ -17,6 +19,15 @@ const data=JSON.parse(read('perks.txt'));
 assert.equal(data.version,'10.2.0');assert.equal(data.build,'10.2.0-3840818');
 assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(DBD_PERK_DATA)',context)),data);
 assert.equal(data.perks.length,321);
+const chapterPerks = JSON.parse(vm.runInContext('JSON.stringify(DBD_PERKS.slice(DBD_PERK_DATA.perks.length))', context));
+assert.deepEqual(chapterPerks.map(perk => [perk.name, perk.role, perk.meta.owner]), [
+  ['Funny Business', 'killer', 'The Terrifier'],
+  ['Kill Spree', 'killer', 'The Terrifier'],
+  ['Laughingstock', 'killer', 'The Terrifier'],
+  ['Best Gift Ever', 'survivor', 'Sienna Shaw'],
+  ['Shared Trauma', 'survivor', 'Sienna Shaw'],
+  ["Valkyrie's Rage", 'survivor', 'Sienna Shaw']
+]);
 assert.equal(data.killers.length,44);
 assert.equal(data.perks.filter(p=>p.role==='survivor').length,176);
 assert.equal(data.perks.filter(p=>p.role==='killer').length,145);
@@ -130,7 +141,7 @@ run('build=[];drawBuild()');assert(get('#build-stats').innerHTML.includes('16.00
 for(const query of ['deja vu','DEJA VU','Déjà Vu','De\u0301ja\u0300 Vu']){
  context.query=query;run('q=query;drawGrid()');assert(get('#grid').innerHTML.includes('data-n="Déjà Vu"'));
 }
-run('q="";drawGrid()');assert.equal((get('#grid').innerHTML.match(/data-n=/g)||[]).length,176);
+run('q="";drawGrid()');assert.equal((get('#grid').innerHTML.match(/data-n=/g)||[]).length,179);
 // Refresh restores the URL tab, then a saved tab; shared-build links open the planner.
 context.URL=URL;
 const tabStorage=new Map();context.localStorage={getItem:k=>tabStorage.get(k)||null,setItem:(k,v)=>tabStorage.set(k,v)};
@@ -193,7 +204,6 @@ assert.equal(get('#match-preset-save').textContent,'Replace saved build');
 get('#match-preset-form').onsubmit({preventDefault(){}});
 assert.equal(run('readPresets().find(p=>p.slot===5).perks.join("|")'),'Bond|Lithe');
 assert.equal(run('readPresets().find(p=>p.slot===5).name'),'From match');
-assert.equal(run('matchPerkDraft.source'),'preset:5');
 
 get('#match-perk-1').value='Bond';assert.throws(()=>run('recordedMatchPerks()'),/different/);
 for(let i=0;i<4;i++)get('#match-perk-'+i).value='';
@@ -205,9 +215,12 @@ assert.equal(run('matchName("ONRYO","K")'),"The Onryō");
 assert.equal(run('matchName("elodie","S")'),"Élodie Rakoto");
 assert.equal(run('matchName("Meg","S")'),"Meg Thomas");
 assert.equal(run('matchName("coal tower","map")'),"Coal Tower");
-assert.equal(run('matchingNames("[.*","K").length'),44,'Search input is literal text, never executable regex');
+assert.equal(run('matchingNames("[.*","K").length'),45,'Search input is literal text, never executable regex');
 assert.equal(run('matchName("unknown custom map","map")'),"unknown custom map");
-assert.equal(run('matchChoices("S").length'),54);
+assert.equal(run('matchChoices("S").length'),55);
+assert.equal(run('matchName("Art the Clown","K")'),"The Terrifier");
+assert.equal(run('matchName("Sienna","S")'),"Sienna Shaw");
+assert.equal(run('matchName("Hartshorne","map")'),"Hartshorne Mall");
 run('tr="S";drawTrack()');
 assert(get('#t-track').innerHTML.includes('Killer faced (optional)'));
 assert(get('#t-track').innerHTML.includes('Map (optional)'));

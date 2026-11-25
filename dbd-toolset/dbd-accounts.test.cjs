@@ -6,15 +6,15 @@ async function main(){
  const nodes=new Map(),stored=new Map(),session=new Map(),tasks=[];
  const get=s=>{if(!nodes.has(s))nodes.set(s,{innerHTML:'',textContent:'',value:'0',focus(){},setAttribute(){},elements:{email:{value:'test@example.com',checkValidity:()=>true},password:{value:'test password 123'},displayName:{value:''}}});return nodes.get(s)};
  let current=null,listener=null,failWrites=false,missingObserved=false,signupPayload=null,resetRequest=null,passwordUpdate=null,userReads=0;
- const rows=new Map(),observedRows=new Map();
+ const rows=new Map(),observedRows=new Map(),presetRows=new Map();
  function query(table){
-  const rowset=table==='matches'?rows:observedRows;
+  const rowset=table==='matches'?rows:table==='build_presets'?presetRows:observedRows;
   const filters={};let operation='select',offset=0,end=499;
   const q={select(){return q},delete(){operation='delete';return q},eq(k,v){filters[k]=v;return q},order(){return q},range(a,b){offset=a;end=b;return q},then(resolve,reject){
    return Promise.resolve().then(()=>{
     assert.equal(filters.user_id,current.id,'Queries must explicitly scope the signed-in owner');
     if(table==='observed_builds'&&missingObserved)return {data:null,error:Error('observed_builds does not exist')};
-    if(operation==='delete')rowset.delete(current.id+':'+filters.id);
+    if(operation==='delete')rowset.delete(current.id+':'+(filters.id??filters.slot));
     return {data:[...rowset.values()].filter(r=>r.user_id===current.id).sort((a,b)=>b.id-a.id).slice(offset,end+1),error:null};
    }).then(resolve,reject);
   }};return q;
@@ -26,21 +26,21 @@ async function main(){
   async resetPasswordForEmail(email,options){resetRequest={email,redirectTo:options.redirectTo};return {error:null}},
   async updateUser({password}){passwordUpdate=password;return {error:null}},
   async signOut(){current=null;listener('SIGNED_OUT',null);return {error:null}},
- },from(name){assert(['matches','observed_builds'].includes(name));const rowset=name==='matches'?rows:observedRows;return {...query(name),async insert(row){
+ },from(name){assert(['matches','observed_builds','build_presets'].includes(name));const rowset=name==='matches'?rows:name==='build_presets'?presetRows:observedRows;return {...query(name),async insert(row){
    assert.equal(row.user_id,current.id);
    const key=row.user_id+':'+row.id;
    if(rowset.has(key))return {error:Error('Duplicate ID')};
    rowset.set(key,row);return {error:null};
- },async upsert(payload){
+ },async upsert(payload,options={}){
    if(failWrites)return {error:Error('Offline')};
-   for(const row of Array.isArray(payload)?payload:[payload]){assert.equal(row.user_id,current.id);rowset.set(row.user_id+':'+row.id,row)}return {error:null};
+   for(const row of Array.isArray(payload)?payload:[payload]){assert.equal(row.user_id,current.id);const key=row.user_id+':'+(row.id??row.slot);if(!options.ignoreDuplicates||!rowset.has(key))rowset.set(key,row)}return {error:null};
  }}}};
  const context=vm.createContext({console,setTimeout:fn=>tasks.push(fn),window:{addEventListener(){},FOG_AUTH_CONFIG:{url:'https://test.supabase.co',publishableKey:'sb_publishable_test',redirectUrl:'http://localhost:8000/dbd-toolkit.html'},supabase:{createClient:()=>client}},
   document:{querySelector:get,addEventListener(){},createElement:()=>({}),head:{appendChild:script=>script.onload()}},
   location:{hash:''},sessionStorage:{getItem:k=>session.get(k)||null,removeItem:k=>session.delete(k)},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){return 1},clearInterval(){}});
  const run=s=>vm.runInContext(s,context);
- for(const name of ['dbd-perks.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
- assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=match-history-order-1'));
+ for(const name of ['dbd-perks.js','dbd-roster.js','dbd-perks-terrifier.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
+ assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=cloud-presets-1'));
  run('globalThis.dataLayer=window.dataLayer=[]');
  const inline=[...read('dbd-toolkit.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');run(inline);
  run(read('dbd-accounts.js'));
@@ -147,8 +147,8 @@ async function main(){
  context.record=record(1,'guest');await run('FogAccounts.saveMatch(record)');assert(stored.get('fog.matches').includes('guest'));
  await assert.rejects(run('FogAccounts.importMatches([{id:1}])'),/Invalid match/);
  run('libraryQuery="deja vu";drawLibraryResults()');assert(get('#library-results').innerHTML.includes('Déjà Vu'));
- run('libraryQuery="";setLibraryRole("K")');assert.equal((get('#library-results').innerHTML.match(/class="library-perk"/g)||[]).length,145);
- run('setLibraryRole("S")');assert.equal((get('#library-results').innerHTML.match(/class="library-perk"/g)||[]).length,176);
+ run('libraryQuery="";setLibraryRole("K")');assert.equal((get('#library-results').innerHTML.match(/class="library-perk"/g)||[]).length,148);
+ run('setLibraryRole("S")');assert.equal((get('#library-results').innerHTML.match(/class="library-perk"/g)||[]).length,179);
  const observed={id:10,date:'2026-10-21',role:'K',player:'Observed player',character:'Nurse',perks:['Whispers'],notes:'Interesting build'};
  context.observed=observed;await run('FogAccounts.saveObserved(observed)');
  assert(stored.get('fog.observedBuilds').includes('Observed player'));
@@ -156,7 +156,19 @@ async function main(){
  await assert.rejects(run('FogAccounts.importObserved([{id:1}])'),/Check the build/);
  current={id:'account-a',email:'a@example.com',email_confirmed_at:'2026-10-20',user_metadata:{display_name:'<Samantha>'}};listener('SIGNED_IN',{user:current});await flush();
  assert.equal(run('readPresets().length'),0,'Guest presets must not appear in account A');
- run('saveBuildPreset(1,"A build",["Bond"],"S")');
+ await run('saveBuildPreset(1,"A build",["Bond"],"S")');
+ assert.equal(presetRows.get('account-a:1').name,'A build');
+ stored.set('fog.presets.account-a',JSON.stringify([
+  {slot:1,name:'Older local build',role:'S',perks:['Hope']},
+  {slot:2,name:'Laptop build',role:'S',perks:['Lithe']}
+ ]));
+ listener('SIGNED_OUT',null);await flush();
+ listener('SIGNED_IN',{user:current});await flush();
+ assert.equal(run('readPresets().map(p=>p.name).join("|")'),'A build|Laptop build|Older local build');
+ stored.delete('fog.presets.account-a');
+ listener('SIGNED_OUT',null);await flush();
+ listener('SIGNED_IN',{user:current});await flush();
+ assert.equal(run('readPresets().map(p=>p.name).join("|")'),'A build|Laptop build|Older local build');
  assert.equal(run('matches.length'),0,'Guest logs must not be silently uploaded');
  assert(get('#t-account').innerHTML.includes('&lt;Samantha&gt;'));
  assert(!get('#t-account').innerHTML.includes('<Samantha>')); 

@@ -9,12 +9,9 @@
   const overlay = sharedId !== null && params.get('view') === 'obs';
   const role = params.get('role') === 'killer' ? 'killer' : 'survivor';
   const draftKey = role === 'killer' ? 'fog.hardcore.killer.v1' : 'fog.hardcore.draft.v1';
-  const characters = [...new Set(DBD_PERK_DATA.perks
-    .filter(perk => perk.role === role)
-    .map(perk => perk.meta?.owner)
-    .filter(name => name && name !== 'General perk'))];
+  const characters = role === 'killer' ? DBD_KILLER_NAMES : DBD_SURVIVOR_NAMES;
   let run, syncing = false, lastSnapshot, clockInterval;
-  const perkNames = role => DBD_PERK_DATA.perks.filter(perk => perk.role === role)
+  const perkNames = role => DBD_PERKS.filter(perk => perk.role === role)
     .map(perk => perk.name).sort((a, b) => a.localeCompare(b));
   const ownPerks = perkNames(role);
   const observedPerks = [...new Set([...perkNames('survivor'), ...perkNames('killer')])]
