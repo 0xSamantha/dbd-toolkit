@@ -222,6 +222,19 @@ assert.equal(run('matchName("Art the Clown","K")'),"The Terrifier");
 assert.equal(run('matchName("Sienna","S")'),"Sienna Shaw");
 assert.equal(run('matchName("Hartshorne","map")'),"Hartshorne Mall");
 run('tr="S";drawTrack()');
+assert(get('#t-track').innerHTML.includes('enterkeyhint="done" onblur="completeSurvivorName(this)"'));
+for(const [typed,expected] of [['ada','Ada Wong'],['sien','Sienna Shaw'],['elodie','Élodie Rakoto'],['la','la'],['Custom name','Custom name']]){
+  get('#fc').value=typed;
+  run('completeSurvivorName($("#fc"))');
+  assert.equal(get('#fc').value,expected);
+}
+let prevented=false;
+get('#fc').value='meg';
+get('#fc').blur=()=>run('completeSurvivorName($("#fc"))');
+context.doneEvent={key:'Enter',currentTarget:get('#fc'),preventDefault(){prevented=true;}};
+run('handleMatchNameKey(doneEvent,"fc","S")');
+assert.equal(get('#fc').value,'Meg Thomas');
+assert(prevented,'Done should complete the name without submitting the match');
 assert(get('#t-track').innerHTML.includes('Win streaks and queue stats'));
 assert(get('#t-track').innerHTML.includes('Solo vs team'));
 assert(get('#t-track').innerHTML.includes('Killer faced (optional)'));

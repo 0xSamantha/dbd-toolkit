@@ -481,11 +481,29 @@ function matchName(value,kind){
   if(!value)return "";
   const key=matchSearchText(value),names=matchChoices(kind);
   const exact=names.find(n=>matchSearchText(n)===key||(kind==="K"&&matchSearchText(n.replace(/^The /,""))===key));
+  if(exact)return exact;
+  if(kind==="S"){
+    const wordMatches=names.filter(name=>name.split(/\s+/).some(word=>matchSearchText(word)===key));
+    if(wordMatches.length===1)return wordMatches[0];
+  }
   const found=matchingNames(value,kind);
-  return exact||(found.length===1?found[0]:value);
+  return found.length===1?found[0]:value;
 }
 function matchNameField(id,label,kind,placeholder){
-  return `<div class="match-name-field"><label for="${id}">${label}</label><input id="${id}" maxlength="80" autocomplete="off" placeholder="${placeholder}" aria-controls="${id}-suggestions" oninput="showMatchSuggestions('${id}','${kind}')" onfocus="showMatchSuggestions('${id}','${kind}')" onclick="showMatchSuggestions('${id}','${kind}')" onkeydown="if(event.key==='Escape')document.getElementById('${id}-suggestions').hidden=true"><div id="${id}-suggestions" class="match-suggestions" hidden aria-label="${label} suggestions"></div></div>`;
+  const survivorAttributes=kind==="S"?'autocorrect="off" spellcheck="false" enterkeyhint="done" onblur="completeSurvivorName(this)"':'';
+  return `<div class="match-name-field"><label for="${id}">${label}</label><input id="${id}" maxlength="80" autocomplete="off" ${survivorAttributes} placeholder="${placeholder}" aria-controls="${id}-suggestions" oninput="showMatchSuggestions('${id}','${kind}')" onfocus="showMatchSuggestions('${id}','${kind}')" onclick="showMatchSuggestions('${id}','${kind}')" onkeydown="handleMatchNameKey(event,'${id}','${kind}')"><div id="${id}-suggestions" class="match-suggestions" hidden aria-label="${label} suggestions"></div></div>`;
+}
+function completeSurvivorName(input){
+  input.value=matchName(input.value,"S");
+}
+function handleMatchNameKey(event,id,kind){
+  if(event.isComposing)return;
+  if(event.key==="Escape")$("#"+id+"-suggestions").hidden=true;
+  if(event.key==="Enter"&&kind==="S"){
+    event.preventDefault();
+    $("#"+id+"-suggestions").hidden=true;
+    event.currentTarget.blur();
+  }
 }
 function dismissMatchSuggestions(event){
   document.querySelectorAll(".match-suggestions:not([hidden])").forEach(box=>{
