@@ -259,6 +259,20 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 }
 .match-suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:20;max-height:180px;overflow-y:auto;background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:4px;box-shadow:0 8px 20px #0008}
 .match-suggestions .btn{display:block;width:100%;text-align:left;margin:2px 0;white-space:normal}
+.stat small{display:block;margin-top:2px;color:var(--mu);font-size:16px;line-height:1.2}
+.performance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px;margin-bottom:12px}
+.performance-card{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;padding:10px;background:var(--panel);box-shadow:var(--sunk);text-align:center;overflow-wrap:anywhere}
+.performance-card .perk-icon{background:transparent}
+.performance-card h3{margin:0;font-size:20px;font-weight:normal;line-height:1.15;color:var(--tx)}
+.performance-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:100%}
+.performance-metrics span{color:var(--mu);font-size:16px;line-height:1.15}
+.performance-metrics b{display:block;font-size:22px;font-weight:normal;color:var(--navy)}
+.performance-card small{color:var(--mu);font-size:16px}
+@media(max-width:600px){
+  .performance-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .performance-card{padding:8px}
+  .performance-metrics b{font-size:20px}
+}
 </style>
 </head>
 <body>
@@ -276,6 +290,7 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 <section id="t-account" hidden></section>
 <section id="t-admin" hidden></section>
 <section id="t-track" hidden></section>
+<section id="t-stats" hidden></section>
 <section id="t-calc" hidden></section>
 <section id="t-observed" hidden></section>
 <section id="t-items" hidden></section>
@@ -293,7 +308,7 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));padding-left:ma
 <script src="dbd-items.js"></script>
 <script src="dbd-observed.js"></script>
 <script src="dbd-presets.js?v=cloud-presets-1"></script>
-<script src="dbd-metrics.js"></script>
+<script src="dbd-metrics.js?v=match-statistics-1"></script>
 <script>
 /* ===== DATA (loaded from dbd-perks.js) ===== */
 const PERKS={S:[],K:[]};
@@ -339,7 +354,7 @@ function sortMatchHistory(records){
 let matches=sortMatchHistory(store.get("fog.matches",[]));
 
 /* ===== tabs ===== */
-const TABS=[["build","Build planner"],["rand","Random loadout"],["perks","Perks"],["account","Account"],["admin","Admin"],["track","Match tracker"],["observed","Observed builds"],["items","Items & add-ons"],["calc","Gen calculator"]];
+const TABS=[["build","Build planner"],["rand","Random loadout"],["perks","Perks"],["account","Account"],["admin","Admin"],["track","Match tracker"],["stats","Statistics"],["observed","Observed builds"],["items","Items & add-ons"],["calc","Gen calculator"]];
 function initialTab(){
   try{const requested=new URL(location.href).searchParams.get("tab");if(TABS.some(([id])=>id===requested))return requested}catch(e){}
   if(/^#b=[SK]:/.test(location.hash||""))return "build";
@@ -350,6 +365,7 @@ let activeToolkitTab, trackNeedsRender=true;
 function refreshMatchTracker(){
   trackNeedsRender=true;
   if(activeToolkitTab==="track")drawTrack();
+  else if(activeToolkitTab==="stats")drawStats();
 }
 function showTab(id){
   if(id==="admin"&&(typeof FogAccounts==="undefined"||!FogAccounts.isAdmin()))id="account";
@@ -368,6 +384,7 @@ function showTab(id){
     else drawMatchPerks();
   }
   if(id==="items")drawItems();
+  if(id==="stats")drawStats();
   if(id==="observed")drawObserved();
   // Preserve build links and verification tokens while remembering this view on refresh.
   try{const url=new URL(location.href);url.searchParams.set("tab",id);window.history.replaceState(null,"",url.href)}catch(e){}
@@ -375,6 +392,23 @@ function showTab(id){
 $("#tabs").innerHTML=TABS.filter(([k])=>k!=="account").map(([k,n])=>`<button ${k==="admin"?"hidden":""} role="tab" id="tab-${k}" onclick="showTab('${k}')">${n}</button>`).join("");
 
 function seg(cur,fn){return `<div class="seg">${["S","K"].map(r=>`<button aria-pressed="${r===cur}" onclick="${fn}('${r}')">${RN[r]}</button>`).join("")}</div>`}
+
+/* Statistics reads the same matches as the tracker; no separate store. */
+let statsRole="S",statsPeriod="all",statsSort="pick";
+function setStatsRole(role){statsRole=role;drawStats()}
+function setStatsPeriod(period){statsPeriod=period;drawStats()}
+function setStatsSort(sort){statsSort=sort;drawStats()}
+function drawStats(){
+  const sorts=[["pick","Pick rate — highest first"],["rate",statsRole==="S"?"Escape rate — highest first":"Win rate — highest first"],["matches","Matches — highest first"],["name","Name — A to Z"]];
+  const loading=typeof FogAccounts!=="undefined"&&FogAccounts.isLoading?.();
+  $("#t-stats").innerHTML=`<div class="card"><h2>Statistics</h2>
+  <p class="sub">Your logged matches, using the same reporting conventions as the match tracker. Optional match statistics add Bloodpoints, healing, hooks, chases and emblem grades.</p>
+  <p class="sub">${esc(typeof FogAccounts==="undefined"?"Checking match history…":FogAccounts.modeNote())}</p>
+  <div class="row">${seg(statsRole,"setStatsRole")}
+  <div class="seg" role="group" aria-label="Time period">${[["30","Last 30 days"],["all","All time"]].map(([value,label])=>`<button type="button" aria-pressed="${statsPeriod===value}" onclick="setStatsPeriod('${value}')">${label}</button>`).join("")}</div>
+  <label>Sort by<select aria-label="Sort statistics" onchange="setStatsSort(this.value)">${sorts.map(([value,label])=>`<option value="${value}" ${statsSort===value?"selected":""}>${label}</option>`).join("")}</select></label></div></div>
+  ${loading?`<section class="card" aria-busy="true"><p class="sub">Your statistics will appear when the account history finishes loading.</p></section>`:matchStatisticsHTML(matches,statsRole,statsPeriod,statsSort)}`;
+}
 
 /* Advisory rules use the supplied dataset version, not a live patch feed. */
 function buildNotes(names,r){
@@ -661,6 +695,47 @@ function observedMatchFields(observed){
     <div class="slots">${[0,1,2,3].map(i=>`<label>Observed perk ${i+1}<input id="match-observed-perk-${i}"
       list="match-observed-choices" maxlength="120" value="${esc(observed?.perks[i]||"")}"></label>`).join("")}</div></details>`;
 }
+function matchStatsFields(stats){
+  const value=key=>stats?.[key]===undefined?"":stats[key];
+  const emblem=key=>stats?.emblems?.[key]===undefined?"":stats.emblems[key];
+  const grades=["None","Bronze","Silver","Gold","Iridescent"];
+  const open=stats&&(stats.bloodpoints!==undefined||stats.healed!==undefined||stats.timesHooked!==undefined||stats.chasesWon!==undefined||stats.longestChaseMs!==undefined||stats.emblems);
+  return `<details ${open?"open":""}><summary>Match statistics (optional)</summary>
+  <p class="sub">Copy values from the end-of-match scoreboard. Leave fields blank when you do not have them; blank values are skipped in totals and averages.</p>
+  <div class="row">
+    <label>Bloodpoints earned<input id="ms-bloodpoints" type="number" inputmode="numeric" min="0" max="1000000" step="1" value="${value("bloodpoints")}"></label>
+    ${tr==="S"?`<label>Survivors healed<input id="ms-healed" type="number" inputmode="numeric" min="0" max="99" step="1" value="${value("healed")}"></label>`:""}
+    <label>${tr==="S"?"Times hooked":"Survivors hooked"}<input id="ms-hooked" type="number" inputmode="numeric" min="0" max="99" step="1" value="${value("timesHooked")}"></label>
+    <label>Chases won<input id="ms-chases" type="number" inputmode="numeric" min="0" max="999" step="1" value="${value("chasesWon")}"></label>
+    <label>Longest chase (seconds)<input id="ms-chase" type="number" inputmode="numeric" min="0" max="3600" step="1" value="${stats?.longestChaseMs===undefined?"":Math.round(stats.longestChaseMs/1000)}"></label>
+  </div>
+  <div class="row">${MATCH_STAT_EMBLEMS[tr].map(([key,label])=>`<label>${label} emblem<select id="ms-emblem-${key}"><option value="">Not recorded</option>${grades.map((name,grade)=>`<option value="${grade}" ${String(emblem(key))===String(grade)?"selected":""}>${name}</option>`).join("")}</select></label>`).join("")}</div>
+  </details>`;
+}
+function matchStatsFromFields(){
+  const number=(id,max)=>{
+    const input=$("#"+id);if(!input)return undefined;
+    const raw=input.value.trim();if(!raw)return undefined;
+    const value=Number(raw);
+    if(!Number.isSafeInteger(value)||value<0||value>max)throw Error("Match statistics must use whole numbers in the allowed ranges.");
+    return value;
+  };
+  const stats={};
+  const bloodpoints=number("ms-bloodpoints",1000000),healed=tr==="S"?number("ms-healed",99):undefined;
+  const hooked=number("ms-hooked",99),chases=number("ms-chases",999),seconds=number("ms-chase",3600);
+  if(bloodpoints!==undefined)stats.bloodpoints=bloodpoints;
+  if(healed!==undefined)stats.healed=healed;
+  if(hooked!==undefined)stats.timesHooked=hooked;
+  if(chases!==undefined)stats.chasesWon=chases;
+  if(seconds!==undefined)stats.longestChaseMs=seconds*1000;
+  const emblems={};
+  for(const [key] of MATCH_STAT_EMBLEMS[tr]){
+    const raw=$("#ms-emblem-"+key).value;
+    if(raw!=="")emblems[key]=Number(raw);
+  }
+  if(Object.keys(emblems).length)stats.emblems=emblems;
+  return normalizeMatchStats(stats,tr);
+}
 function cancelMatchEdit(){
   editingMatch=null;matchPerkDraft={role:tr,perks:[],source:""};drawTrack();
 }
@@ -677,11 +752,12 @@ async function save(){
   const timerKey=matchTimerKey(),draft=editingMatch?null:matchTimer();
   if(draft&&draft.endedAt==null)return;
   if(draft&&!$("#fr").value){$("#fr").focus();return alert("Choose a match result before saving.")}
-  let perks;try{perks=recordedMatchPerks()}catch(error){alert(error.message);return;}
+  let perks,stats;try{perks=recordedMatchPerks();stats=matchStatsFromFields()}catch(error){alert(error.message);return;}
   if(editingMatch&&!matches.includes(editingMatch)){cancelMatchEdit();alert("This match is no longer available. Please reopen it from history.");return;}
   const rec={id:editingMatch?.id||draft?.startedAt||Date.now(),date:draft?.date||$("#fd").value||localMatchDate(),role:tr,character:matchName($("#fc").value||"",tr)||"Unknown",
     map:matchName($("#fm").value||"","map"),opposingKiller:tr==="S"?matchName($("#fk").value||"","K"):"",
     result:tr==="K"&&/^[0-4]$/.test($("#fr").value)?Number($("#fr").value):$("#fr").value,perks,notes:$("#fn").value.trim()};
+  if(stats)rec.stats=stats;
   const queue=matchQueueValue("match-queue");
   if(queue)rec.queue=queue;
   if(editingMatch?.hardcoreSource)rec.hardcoreSource=editingMatch.hardcoreSource;
@@ -736,6 +812,7 @@ function drawTrack(){
   ${matchQueueFields("match-queue",editingMatch?.queue)}
   <label>Notes<textarea id="fn" maxlength="300" placeholder="What went wrong, what worked"></textarea></label>
   ${observedMatchFields(editingMatch?.observed)}
+  ${matchStatsFields(editingMatch?.stats)}
   <p><button class="btn" id="match-save" onclick="save()">${editingMatch?"Save changes":"Save match"}</button> ${editingMatch?'<button class="btn ghost" onclick="cancelMatchEdit()">Cancel</button>':""}</p><p id="match-save-status" role="status"></p></div></div>${editingMatch?"</dialog>":""}
   ${matchMetricsHTML(matches)}
   ${streakAndQueueMetricsHTML(matches,matchQueueLabels)}
@@ -822,7 +899,7 @@ showTab(initialTab());
 </script>
 <script src="dbd-auth-config.js"></script>
 <!-- Version this URL when the stored match format changes, to avoid cached validators dropping fields. -->
-<script src="dbd-accounts.js?v=cloud-presets-2"></script>
+<script src="dbd-accounts.js?v=match-statistics-1"></script>
 <script src="dbd-admin.js?v=1"></script>
 </body>
 </html>

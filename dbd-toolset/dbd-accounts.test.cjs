@@ -40,7 +40,8 @@ async function main(){
   location:{hash:''},sessionStorage:{getItem:k=>session.get(k)||null,removeItem:k=>session.delete(k)},localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},setInterval(){return 1},clearInterval(){}});
  const run=s=>vm.runInContext(s,context);
  for(const name of ['dbd-perks.js','dbd-roster.js','dbd-perks-terrifier.js','dbd-stats.js','dbd-items-data.js','dbd-items.js','dbd-observed.js','dbd-presets.js','dbd-metrics.js'])vm.runInContext(read(name),context);
- assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=cloud-presets-2'));
+ assert(read('dbd-toolkit.html').includes('dbd-accounts.js?v=match-statistics-1'));
+ assert(read('dbd-toolkit.html').includes('dbd-metrics.js?v=match-statistics-1'));
  run('globalThis.dataLayer=window.dataLayer=[]');
  const inline=[...read('dbd-toolkit.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');run(inline);
  run(read('dbd-accounts.js'));
@@ -55,6 +56,16 @@ async function main(){
   context.badFieldRecord={...record(123),[field]:'x'.repeat(81)};
   assert.throws(()=>run('FogAccounts.validateMatch(badFieldRecord)'),/Invalid match/);
  }
+ context.statsRecord={...record(124),stats:{bloodpoints:12000,healed:1,timesHooked:0,chasesWon:2,longestChaseMs:64000,emblems:{benevolent:4,evader:3}}};
+ assert.equal(run('FogAccounts.validateMatch(statsRecord).stats.bloodpoints'),12000);
+ assert.equal(run('FogAccounts.validateMatch(statsRecord).stats.longestChaseMs'),64000);
+ assert.equal(run('FogAccounts.validateMatch(statsRecord).stats.emblems.evader'),3);
+ context.badStatsRecord={...record(125),stats:{bloodpoints:-1}};
+ assert.throws(()=>run('FogAccounts.validateMatch(badStatsRecord)'),/Invalid match/);
+ context.badKillerStats={...record(126),role:'K',result:3,stats:{healed:1}};
+ assert.throws(()=>run('FogAccounts.validateMatch(badKillerStats)'),/Invalid match/);
+ context.badEmblemStats={...record(127),stats:{emblems:{gatekeeper:4}}};
+ assert.throws(()=>run('FogAccounts.validateMatch(badEmblemStats)'),/Invalid match/);
 
  const flush=async()=>{for(let i=0;i<20;i++){await Promise.resolve();while(tasks.length)tasks.shift()();}};
  await flush();
@@ -127,12 +138,24 @@ async function main(){
  get('#fr').value='Escaped';
  get('#match-observed-character').value='The Clown';
  for(let i=0;i<4;i++)get('#match-observed-perk-'+i).value=i===0?'Pop Goes the Weasel':'';
+ get('#ms-bloodpoints').value='18000';get('#ms-healed').value='2';get('#ms-hooked').value='1';
+ get('#ms-chases').value='2';get('#ms-chase').value='64';
+ for(const key of ['benevolent','evader','lightbringer','unbroken'])get('#ms-emblem-'+key).value='';
+ get('#ms-emblem-benevolent').value='4';get('#ms-emblem-evader').value='3';
  const timedId=run('matchTimer().startedAt');
  await run('save()');
  assert.equal(run('matchTimer()'),null);
  assert.equal(run(`matches.find(m=>m.id===${timedId}).character`),'Meg Thomas');
  assert.equal(run(`matches.find(m=>m.id===${timedId}).perks.join("|")`),'Bond|Hope');
  assert.equal(run(`matches.find(m=>m.id===${timedId}).observed.character`),'The Clown');
+ assert.equal(run(`matches.find(m=>m.id===${timedId}).stats.bloodpoints`),18000);
+ assert.equal(run(`matches.find(m=>m.id===${timedId}).stats.healed`),2);
+ assert.equal(run(`matches.find(m=>m.id===${timedId}).stats.timesHooked`),1);
+ assert.equal(run(`matches.find(m=>m.id===${timedId}).stats.chasesWon`),2);
+ assert.equal(run(`matches.find(m=>m.id===${timedId}).stats.longestChaseMs`),64000);
+ assert.equal(run(`matches.find(m=>m.id===${timedId}).stats.emblems.benevolent`),4);
+ assert.equal(run(`matches.find(m=>m.id===${timedId}).stats.emblems.evader`),3);
+ assert.equal(run(`matches.find(m=>m.id===${timedId}).stats.emblems.unbroken`),undefined);
  assert.match(get('#t-track').innerHTML,/class="match-history-actions"[^]*>Edit<\/button>[^]*>Delete<\/button>/);
  assert.equal(run(`Number.isSafeInteger(matches.find(m=>m.id===${timedId}).durationMs)`),true);
  await run(`FogAccounts.deleteMatch(${timedId})`);

@@ -1,12 +1,12 @@
 # DBD Toolkit design system audit
 
-The audit covers two HTML entry points, nine Toolkit views and five Hardcore modes. Prioritize control sizing, keyboard behavior and operation feedback while preserving both visual treatments.
+The audit covers two HTML entry points, ten Toolkit views and five Hardcore modes. Prioritize control sizing, keyboard behavior and operation feedback while preserving both visual treatments.
 
 ## Inventory
 
 ### Scope and architecture
 
-Two rendered HTML entry points. Toolkit has nine views: Build planner, Random loadout, Perks, Account, Admin, Match tracker, Observed builds, Items & add-ons and Gen calculator. Hardcore has five audit surfaces: setup, Survivor run, Killer run, shared read-only run and OBS. The two index pages redirect and retain query/hash parameters. The Toolkit loads classic scripts with shared globals and renders templates into tab sections. Hardcore has its own stylesheet, render controller, run model and portrait catalog. The repository has no standalone component library. The effective library is CSS classes, template helpers and native elements.
+Two rendered HTML entry points. Toolkit has ten views: Build planner, Random loadout, Perks, Account, Admin, Match tracker, Statistics, Observed builds, Items & add-ons and Gen calculator. Hardcore has five audit surfaces: setup, Survivor run, Killer run, shared read-only run and OBS. The two index pages redirect and retain query/hash parameters. The Toolkit loads classic scripts with shared globals and renders templates into tab sections. Hardcore has its own stylesheet, render controller, run model and portrait catalog. The repository has no standalone component library. The effective library is CSS classes, template helpers and native elements.
 
 index.html · dbd-toolset/index.html · dbd-toolkit.html:265–375 · hardcore.html:8–24
 
@@ -52,7 +52,7 @@ Affected: Toolkit shell, Build planner, Random loadout, Observed builds, Items, 
 
 Toolkit declares a tablist with tab buttons and aria-selected, while sections lack tabpanel relationships and no roving focus or arrow handling is wired to tabs. Match suggestions can be reached by Tab and dismissed with Escape, but expose neither expanded state nor arrow selection. Free text is accepted and should stay usable. Hardcore role links are real destinations with different saved runs and should preserve normal navigation.
 
-Affected: all nine Toolkit views through the shell, plus character, killer and map fields on Match tracker. dbd-toolkit.html:270–281, 339–373, 483–498 · hardcore.js:7–11, 44–47
+Affected: all ten Toolkit views through the shell, plus character, killer and map fields on Match tracker. dbd-toolkit.html:270–281, 339–373, 483–498 · hardcore.js:7–11, 44–47
 
 ### High · pending data looks empty
 
@@ -84,13 +84,13 @@ Affected: Toolkit shell and card consumers, Build planner, Random loadout, Obser
 
 Duplicate action styling spans Toolkit nav, .btn, slot controls, account/taskbar controls, item info and Hardcore buttons/links. Both itemInfo and perkInfo feed the same description renderer through .info and data-d. Define one action geometry contract and one icon-button recipe. Allow item tiles and roster tiles to keep their own sizing and states. This gives the same action the same hit area and focus treatment and preserves each interaction.
 
-Reach: nine Toolkit views through the shell and Hardcore setup plus two editable runs. dbd-toolkit.html:33–44, 89–111, 217–221, 319–324 · dbd-items.js:57–64 · hardcore.css:37–54
+Reach: ten Toolkit views through the shell and Hardcore setup plus two editable runs. dbd-toolkit.html:33–44, 89–111, 217–221, 319–324 · dbd-items.js:57–64 · hardcore.css:37–54
 
 ### Cards, stats and tables
 
-Metric tiles are composed independently in build estimates, total and advanced match metrics, streaks, Items, Admin and Hardcore. Tables in metrics, Items and Admin repeat wrappers and headers. Share Toolkit panel, metric label/value/note slots and scroll-wrapper CSS first. Promote a table template only if the same header and cell structure recurs after migration. This removes selector-specific hierarchy differences and keeps match history’s mobile rows and the OBS scoreboard adaptable.
+Metric tiles are composed independently in build estimates, total and advanced match metrics, streaks, Statistics, Items, Admin and Hardcore. Tables in metrics, Statistics, Items and Admin repeat wrappers and headers. Share Toolkit panel, metric label/value/note slots and scroll-wrapper CSS first. Promote a table template only if the same header and cell structure recurs after migration. This removes selector-specific hierarchy differences and keeps match history’s mobile rows and the OBS scoreboard adaptable.
 
-Reach: five Toolkit views (Planner, Match tracker, Items, Admin, Observed builds for panels) and four Hardcore scoreboard modes (Survivor, Killer, shared and OBS). dbd-stats.js · dbd-metrics.js · dbd-items.js:129–173 · dbd-admin.js:18–32 · hardcore.js:173–182
+Reach: six Toolkit views (Planner, Match tracker, Statistics, Items, Admin, Observed builds for panels) and four Hardcore scoreboard modes (Survivor, Killer, shared and OBS). dbd-stats.js · dbd-metrics.js · dbd-items.js:129–173 · dbd-admin.js:18–32 · hardcore.js:173–182
 
 ### Queue and field templates
 
@@ -142,13 +142,13 @@ Source review · dbd-toolkit.html:654–739 · dbd-metrics.js:42 onward · dbd-o
 
 Start with --font-ui: VT323, monospace; --font-data: ui-monospace, monospace; --line-body: 1.25. Preserve existing body scales as theme aliases. Capture common spacing steps 4, 8, 12, 16, 20 and 24px, retaining a small 6/10px compact pair where already used. Add --stroke-default: 1px and --stroke-emphasis: 2px. This centralizes recurring measurements and limits first-pass visual drift.
 
-Reach: both HTML shells and all 14 reviewed views/modes.
+Reach: both HTML shells and all 15 reviewed views/modes.
 
 ### Semantic theme aliases · both shells
 
 Use --surface-page, --surface-panel, --surface-inset, --text-primary, --text-muted, --border-default, --accent, --focus-ring, --state-success, --state-warning and --state-danger. Map Toolkit rose and Hardcore amber to their existing accent values. Keep outcome colors separate from action colors. Add theme aliases for --radius-control (0/5px), --radius-panel (0/8px), --elevation-raised and --elevation-inset. Naming by role makes palette decisions searchable and lets both themes use the same markup.
 
-Reach: both HTML shells and all 14 reviewed views/modes.
+Reach: both HTML shells and all 15 reviewed views/modes.
 
 ### Component tokens · recurring controls
 
@@ -168,13 +168,13 @@ Reach: Items, Match tracker, two local Hardcore run forms and OBS.
 
 Capture the checklist fixtures first. Introduce shared CSS variables and action/field styles with existing theme values. Migrate Toolkit shell buttons and Hardcore masthead/role/form controls first, then normalize slot and icon-button geometry. Compare computed heights and keyboard focus in each migrated slice. Highest reach with incremental, easily reviewed CSS changes.
 
-Reach: both shells, all nine Toolkit views and three editable Hardcore modes.
+Reach: both shells, all ten Toolkit views and three editable Hardcore modes.
 
 ### 2 · Repair navigation and popover contracts
 
 Complete tab/panel associations and arrow/home/end handling or convert the shell to destination links if back/forward should represent panel navigation. Preserve hash and URL restoration. Implement an accessible free-text suggestions pattern or explicitly keep a disclosed button list with equivalent keyboard access. Preserve native dialog and popover distinctions, add focus return on edit/history close and test Escape in layered states.
 
-Reach: nine Toolkit views through tabs, three Match tracker fields, two dialogs and the shared item/perk info layer.
+Reach: ten Toolkit views through tabs, three Match tracker fields, two dialogs and the shared item/perk info layer.
 
 ### 3 · Standardize operation feedback
 
@@ -192,7 +192,7 @@ Reach: both entry points, five Toolkit panel consumers, five queue-control place
 
 ### Responsive baselines
 
-Capture desktop at 1440px and narrow at 320px and 390px. Exercise Toolkit boundaries at 350/351, 420/421 and 600/601px and Hardcore at 380/381, 600/601 and 700/701px. Open all nine Toolkit views and Hardcore setup, both roles, published view and transparent OBS. Include long labels, late or missing artwork, 200% zoom, font fallback and mobile safe areas. Check no page-level overflow and preserve in-container table scrolling.
+Capture desktop at 1440px and narrow at 320px and 390px. Exercise Toolkit boundaries at 350/351, 420/421 and 600/601px and Hardcore at 380/381, 600/601 and 700/701px. Open all ten Toolkit views and Hardcore setup, both roles, published view and transparent OBS. Include long labels, late or missing artwork, 200% zoom, font fallback and mobile safe areas. Check no page-level overflow and preserve in-container table scrolling.
 
 Verify geometry, text wrap, hierarchy, contrast, section order and fixed taskbar overlap.
 
@@ -216,6 +216,6 @@ Account, Admin, dependent Toolkit views, both local runs, shared and OBS.
 
 ### Verification record
 
-Eight existing Node suites passed. They exercise the Toolkit’s template output, calculations and account mocks, plus Hardcore’s model and transfer flows. The browser host was unavailable, so computed geometry, contrast, keyboard interaction, screenshot comparisons and live signed-in paths remain browser checklist items.
+All seven Node suites passed, including the new statistics suite. They exercise the Toolkit’s template output, calculations and account mocks, plus Hardcore’s model and transfer flows. A seeded headless Chrome run confirmed the Statistics tab renders survivor and killer totals, the 30-day filter, sorting, emblem counts, perk cards and the character table. Computed geometry, contrast, keyboard interaction, screenshot comparisons and live signed-in paths remain browser checklist items.
 
 Command: node --test dbd-toolset/*.test.*

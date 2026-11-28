@@ -21,8 +21,10 @@ const FogAccounts=(()=>{
         m.observed.perks.some(p=>typeof p!=='string'||p.length>120)))||
       !isValidMatchResult(m.role,m.result)||
       !Array.isArray(m.perks)||m.perks.length>4||m.perks.some(p=>typeof p!=='string'||p.length>120)||
-      typeof m.notes!=='string'||m.notes.length>300)throw Error('Invalid match record. Check its date, role, result, perks and notes.');
-    return {id:m.id,date:m.date,role:m.role,character:m.character,result:m.result,perks:[...m.perks],notes:m.notes,...(m.map!==undefined?{map:m.map}:{}),...(m.opposingKiller!==undefined?{opposingKiller:m.opposingKiller}:{}),
+      typeof m.notes!=='string'||m.notes.length>300)throw Error('Invalid match record. Check its date, role, result, perks, notes and statistics.');
+    let stats;
+    try{stats=normalizeMatchStats(m.stats,m.role)}catch{throw Error('Invalid match record. Check its date, role, result, perks, notes and statistics.')}
+    return {id:m.id,date:m.date,role:m.role,character:m.character,result:m.result,perks:[...m.perks],notes:m.notes,...(m.map!==undefined?{map:m.map}:{}),...(m.opposingKiller!==undefined?{opposingKiller:m.opposingKiller}:{}),...(stats?{stats}:{}),
       ...(m.queue!==undefined?{queue:m.queue}:{}),
       ...(m.hardcoreSource!==undefined?{hardcoreSource:m.hardcoreSource}:{}),
       ...(m.durationMs!==undefined?{durationMs:m.durationMs}:{}),
@@ -343,6 +345,6 @@ const FogAccounts=(()=>{
       drawAccount();
     }catch(error){notice(error.message);}
   }
-  return {isAdmin,analytics,presetStorageKey:()=>user?'fog.presets.'+user.id:'fog.presets.guest',canManagePresets,presetStatus,accountPresets:()=>user?cloudPresets:null,changePreset,init,drawAccount,modeNote,saveMatch,deleteMatch,importMatches,validateMatch,observedMode,saveObserved,deleteObserved,importObserved,copyGuestObserved};
+  return {isAdmin,isLoading:()=>loading,analytics,presetStorageKey:()=>user?'fog.presets.'+user.id:'fog.presets.guest',canManagePresets,presetStatus,accountPresets:()=>user?cloudPresets:null,changePreset,init,drawAccount,modeNote,saveMatch,deleteMatch,importMatches,validateMatch,observedMode,saveObserved,deleteObserved,importObserved,copyGuestObserved};
 })();
 FogAccounts.init();
