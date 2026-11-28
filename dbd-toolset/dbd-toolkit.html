@@ -355,6 +355,14 @@ let matches=sortMatchHistory(store.get("fog.matches",[]));
 
 /* ===== tabs ===== */
 const TABS=[["build","Build planner"],["rand","Random loadout"],["perks","Perks"],["account","Account"],["admin","Admin"],["track","Match tracker"],["stats","Statistics"],["observed","Observed builds"],["items","Items & add-ons"],["calc","Gen calculator"]];
+// Keep forms and small, stateful views mounted. Large icon/table views are
+// rebuilt on demand so their DOM and decoded images do not accumulate.
+const RETAINED_TAB_VIEWS=new Set(["rand","account","admin","track"]);
+function releaseTabView(id){
+  if(RETAINED_TAB_VIEWS.has(id))return;
+  const node=$("#t-"+id);
+  if(node)node.innerHTML="";
+}
 function initialTab(){
   try{const requested=new URL(location.href).searchParams.get("tab");if(TABS.some(([id])=>id===requested))return requested}catch(e){}
   if(/^#b=[SK]:/.test(location.hash||""))return "build";
