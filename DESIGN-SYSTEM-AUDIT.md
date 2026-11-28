@@ -216,6 +216,6 @@ Account, Admin, dependent Toolkit views, both local runs, shared and OBS.
 
 ### Verification record
 
-All seven Node suites passed, including the new statistics suite. They exercise the Toolkit’s template output, calculations and account mocks, plus Hardcore’s model and transfer flows. A seeded headless Chrome run confirmed the Statistics tab renders survivor and killer totals, the 30-day filter, sorting, emblem counts, perk cards and the character table. Computed geometry, contrast, keyboard interaction, screenshot comparisons and live signed-in paths remain browser checklist items.
+All seven Node suites passed, including the new statistics suite. They exercise the Toolkit’s template output, calculations and account mocks, plus Hardcore’s model and transfer flows. A seeded headless Chrome run confirmed the Statistics tab renders core survivor and killer totals, the 30-day filter, sorting, perk cards and the character table; optional Bloodpoint, healing, hook, chase and emblem cards render in Advanced match analysis. Computed geometry, contrast, keyboard interaction, screenshot comparisons and live signed-in paths remain browser checklist items.
 
 Command: node --test dbd-toolset/*.test.*

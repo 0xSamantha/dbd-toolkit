@@ -1,6 +1,6 @@
 # Results and importing match data
 
-The tracker displays total matches, wins, losses, draws, surrenders, win rate, survivor escape rate and average known killer kills before the entry form. The advanced section contains results by role, a killer kill distribution, character results and perk usage with sample sizes. The separate **Statistics** tab turns the same history into a totals page, emblem counts, perk pick/escape cards and a character table.
+The tracker displays total matches, wins, losses, draws, surrenders, win rate, survivor escape rate and average known killer kills before the entry form. The advanced section contains results by role, a killer kill distribution, optional match statistics, character results and perk usage with sample sizes. The separate **Statistics** tab turns the same history into core role totals, perk pick/escape cards and a character table.
 
 Reporting conventions are explicit app choices:
 
@@ -23,8 +23,9 @@ The Statistics tab reads the same history as the match tracker; there is no seco
 - Role buttons switch survivor and killer views.
 - **Last 30 days** uses the local calendar date and includes today plus the previous 29 days. **All time** uses every logged match.
 - **Sort by** applies to perk cards and the character table: pick rate, escape/win rate, matches or name.
-- Survivor totals: matches, escapes, escape rate, total and average Bloodpoints, total and average survivors healed, total and average times hooked, total chases won, longest chase, and the four survivor emblems.
-- Killer totals: matches, kills, average killer kills, win rate, total and average Bloodpoints, total and average hooks, total chases won, longest chase, and the four killer emblems.
+- Survivor totals: matches, escapes and escape rate.
+- Killer totals: matches, kills, average killer kills and win rate.
+- Optional match statistics appear in **Advanced match analysis** on the Match tracker. Survivors show total and average Bloodpoints, total and average survivors healed, total and average times hooked, total chases won, longest chase and the four survivor emblems. Killers show total and average Bloodpoints, total and average hooks, total chases won, longest chase and the four killer emblems.
 - Perk pick rate uses matches where a loadout was recorded. Perk escape/win rate uses only matches where that perk was recorded. Character play rate uses all role matches in the period.
 - Emblem values count matches where the grade was above zero. A recorded grade of zero is still included in the average. Small samples are shown as-is and are not evidence of perk effectiveness.
 - Blank statistics are skipped in totals and averages. A card shows `–` until at least one match has the relevant value.

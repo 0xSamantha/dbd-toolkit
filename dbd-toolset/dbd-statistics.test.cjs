@@ -76,31 +76,43 @@ const survivorHTML=run('matchStatisticsHTML(statRecords,"S","30","pick",new Date
 assert.match(survivorHTML,/Total survivor stats/);
 assert.match(survivorHTML,/Total escapes<\/span><b>2<\/b><small>0 deaths recorded/);
 assert.match(survivorHTML,/Escape rate<\/span><b>100\.00%<\/b>/);
-assert.match(survivorHTML,/Total Bloodpoints earned<\/span><b>30,000<\/b>/);
-assert.match(survivorHTML,/Average survivors healed<\/span><b>2<\/b>/);
-assert.match(survivorHTML,/Longest chase time<\/span><b>1 m 4 s<\/b>/);
-assert.match(survivorHTML,/Benevolent<\/span><b>1<\/b>/);
+assert.doesNotMatch(survivorHTML,/Total Bloodpoints earned|Average survivors healed|Longest chase time|Benevolent/);
+assert.match(survivorHTML,/Optional Bloodpoints, healing, hook, chase and emblem statistics are summarized in Advanced match analysis/);
 assert.match(survivorHTML,/Deja Vu/);
 assert.match(survivorHTML,/data-perk="Deja Vu"/);
 assert.match(survivorHTML,/Pick rate<b>100\.00%<\/b>/);
 assert.match(survivorHTML,/Meg/);
 assert.match(survivorHTML,/50\.00%/);
-assert.match(survivorHTML,/1 of 2 survivor matches include performance statistics/);
 
 const killerHTML=run('matchStatisticsHTML(statRecords,"K","all","rate",new Date("2026-11-27T12:00:00"))');
 assert.match(killerHTML,/Total killer stats/);
 assert.match(killerHTML,/Total kills<\/span><b>3<\/b>/);
 assert.match(killerHTML,/1 scored match<\/small>/);
 assert.match(killerHTML,/Win rate<\/span><b>100\.00%<\/b>/);
-assert.match(killerHTML,/1 of 1 killer match includes performance statistics/);
+assert.match(killerHTML,/Optional Bloodpoints, hook, chase and emblem statistics are summarized in Advanced match analysis/);
+assert.doesNotMatch(killerHTML,/Total Bloodpoints earned|Total survivors hooked|Devout|performance statistics/);
 assert.match(killerHTML,/The Clown/);
-assert.match(killerHTML,/Devout/);
+
+const advancedHTML=run('advancedMatchMetricsHTML(statRecords)');
+assert.match(advancedHTML,/Optional match statistics/);
+assert.match(advancedHTML,/Total Bloodpoints earned<\/span><b>40,000<\/b>/);
+assert.match(advancedHTML,/Average survivors healed<\/span><b>1\.5<\/b>/);
+assert.match(advancedHTML,/Total times hooked<\/span><b>3<\/b>/);
+assert.match(advancedHTML,/Longest chase time<\/span><b>1 m 4 s<\/b>/);
+assert.match(advancedHTML,/Benevolent<\/span><b>1<\/b>/);
+assert.match(advancedHTML,/Total survivors hooked<\/span><b>3<\/b>/);
+assert.match(advancedHTML,/Devout<\/span><b>1<\/b>/);
+assert.match(advancedHTML,/Optional statistics recorded in 2 of 3 survivor matches/);
+assert.match(advancedHTML,/Optional statistics recorded in 1 of 1 killer match/);
 
 const emptyHTML=run('matchStatisticsHTML([],"S","all","pick",new Date())');
 assert.match(emptyHTML,/Total survivor stats/);
+assert.match(emptyHTML,/Total matches played<\/span><b>0<\/b>/);
 assert.match(emptyHTML,/<b>–<\/b>/);
-assert.match(emptyHTML,/0 matches recorded/);
 assert.match(emptyHTML,/No perks recorded in this period/);
 assert.match(emptyHTML,/No character history in this period/);
 
-console.log('PASS: match statistic validation; period filtering; total/average/emblem aggregation; perk and character rates; sorting; statistics HTML and empty states.');
+const emptyAdvanced=run('advancedMatchMetricsHTML([])');
+assert.match(emptyAdvanced,/No optional match statistics recorded yet/);
+
+console.log('PASS: match statistic validation; period filtering; total/average/emblem aggregation; perk and character rates; sorting; statistics HTML, advanced optional statistics and empty states.');

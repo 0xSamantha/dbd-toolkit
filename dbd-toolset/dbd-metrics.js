@@ -131,6 +131,36 @@ function matchStatisticsSummary(records,role){
     chasesWon:{total:statTotal(chases),recorded:chases.length,average:statAverage(chases)},
     longestChaseMs:chaseTimes.length?Math.max(...chaseTimes):null,emblems};
 }
+function optionalMatchStatisticsHTML(records){
+  const blocks=['S','K'].map(role=>({role,summary:matchStatisticsSummary(records,role)})).filter(({summary})=>summary.withStats);
+  if(!blocks.length)return '<p class="sub">No optional match statistics recorded yet. Add them when logging or editing a match.</p>';
+  return blocks.map(({role,summary})=>{
+    const card=(name,value,note='')=>`<div class="stat"><span>${name}</span><b>${value}</b>${note?`<small>${note}</small>`:''}</div>`;
+    const count=(value,singular,plural)=>value+' '+(value===1?singular:plural);
+    const recorded=entry=>count(entry.recorded,'match','matches')+' recorded';
+    const bucket=entry=>entry.recorded?formatStatNumber(entry.total):'–';
+    const average=value=>formatStatAverage(value);
+    const cards=role==='S'?[
+      card('Total Bloodpoints earned',bucket(summary.bloodpoints),recorded(summary.bloodpoints)),
+      card('Average Bloodpoints earned',average(summary.bloodpoints.average),'Recorded values only'),
+      card('Total survivors healed',bucket(summary.healed),recorded(summary.healed)),
+      card('Average survivors healed',average(summary.healed.average),'Recorded values only'),
+      card('Total times hooked',bucket(summary.timesHooked),recorded(summary.timesHooked)),
+      card('Average times hooked',average(summary.timesHooked.average),'Recorded values only'),
+      card('Total chases won',bucket(summary.chasesWon),recorded(summary.chasesWon)),
+      card('Longest chase time',summary.longestChaseMs===null?'–':formatChaseDuration(summary.longestChaseMs),'Longest recorded chase')
+    ]:[
+      card('Total Bloodpoints earned',bucket(summary.bloodpoints),recorded(summary.bloodpoints)),
+      card('Average Bloodpoints earned',average(summary.bloodpoints.average),'Recorded values only'),
+      card('Total survivors hooked',bucket(summary.timesHooked),recorded(summary.timesHooked)),
+      card('Average hooks',average(summary.timesHooked.average),'Recorded values only'),
+      card('Total chases won',bucket(summary.chasesWon),recorded(summary.chasesWon)),
+      card('Longest chase time',summary.longestChaseMs===null?'–':formatChaseDuration(summary.longestChaseMs),'Longest recorded chase')
+    ];
+    const emblemCards=Object.values(summary.emblems).map(emblem=>card(emblem.label,emblem.recorded?formatStatNumber(emblem.earned):'–',emblem.recorded?emblem.recorded+' recorded · avg '+average(emblem.average):'No emblem grades recorded'));
+    return `<h4>${RN[role]} statistics</h4><div class="stats">${cards.join('')}${emblemCards.join('')}</div><p class="sub">Optional statistics recorded in ${summary.withStats} of ${count(summary.matches,RN[role].toLowerCase()+' match',RN[role].toLowerCase()+' matches')}. Totals and averages use recorded values only.</p>`;
+  }).join('');
+}
 function matchPerformanceGroups(records,role,group='perk'){
   const scoped=records.filter(match=>match.role===role);
   const base=group==='perk'?scoped.filter(match=>Array.isArray(match.perks)&&match.perks.length):scoped;
@@ -161,42 +191,25 @@ function matchStatisticsHTML(records,role,period='all',sort='pick',now=new Date(
   const scoped=filterMatchesByPeriod(records,period,now),summary=matchStatisticsSummary(scoped,role);
   const roleLabel=typeof RN!=='undefined'?RN[role]:(role==='S'?'Survivor':'Killer');
   const rateLabel=role==='S'?'Escape rate':'Win rate';
+  const optionalLabel=role==='S'?'Bloodpoints, healing, hook, chase and emblem':'Bloodpoints, hook, chase and emblem';
   const escStat=value=>typeof esc==='function'?esc(value):String(value);
   const icon=name=>typeof perkIcon==='function'?perkIcon(name):'';
   const card=(name,value,note='')=>`<div class="stat"><span>${name}</span><b>${value}</b>${note?`<small>${note}</small>`:''}</div>`;
   const count=(value,singular,plural)=>value+' '+(value===1?singular:plural);
-  const recorded=entry=>count(entry.recorded,'match','matches')+' recorded';
-  const bucket=(entry,key='total')=>entry.recorded?formatStatNumber(entry[key]):'–';
-  const average=value=>formatStatAverage(value);
   const cards=role==='S'?[
     card('Total matches played',summary.matches),
     card('Total escapes',summary.escapes,count(summary.deaths,'death','deaths')+' recorded'),
-    card('Escape rate',formatStatPercent(summary.escapeRate),'Escapes ÷ survivor matches'),
-    card('Total Bloodpoints earned',bucket(summary.bloodpoints),recorded(summary.bloodpoints)),
-    card('Average Bloodpoints earned',average(summary.bloodpoints.average),'Recorded values only'),
-    card('Total survivors healed',bucket(summary.healed),recorded(summary.healed)),
-    card('Average survivors healed',average(summary.healed.average),'Recorded values only'),
-    card('Total times hooked',bucket(summary.timesHooked),recorded(summary.timesHooked)),
-    card('Average times hooked',average(summary.timesHooked.average),'Recorded values only'),
-    card('Total chases won',bucket(summary.chasesWon),recorded(summary.chasesWon)),
-    card('Longest chase time',summary.longestChaseMs===null?'–':formatChaseDuration(summary.longestChaseMs),'Longest recorded chase')
+    card('Escape rate',formatStatPercent(summary.escapeRate),'Escapes ÷ survivor matches')
   ]:[
     card('Total matches played',summary.matches),
     card('Total kills',formatStatNumber(summary.kills),count(summary.scoredKillerMatches,'scored match','scored matches')),
     card('Average killer kills',summary.averageKills===null?'–':summary.averageKills.toFixed(2),'Known kill counts only'),
-    card('Win rate',formatStatPercent(summary.winRate),'3–4 kills = win; 2 = draw'),
-    card('Total Bloodpoints earned',bucket(summary.bloodpoints),recorded(summary.bloodpoints)),
-    card('Average Bloodpoints earned',average(summary.bloodpoints.average),'Recorded values only'),
-    card('Total survivors hooked',bucket(summary.timesHooked),recorded(summary.timesHooked)),
-    card('Average hooks',average(summary.timesHooked.average),'Recorded values only'),
-    card('Total chases won',bucket(summary.chasesWon),recorded(summary.chasesWon)),
-    card('Longest chase time',summary.longestChaseMs===null?'–':formatChaseDuration(summary.longestChaseMs),'Longest recorded chase')
+    card('Win rate',formatStatPercent(summary.winRate),'3–4 kills = win; 2 = draw')
   ];
-  const emblemCards=Object.values(summary.emblems).map(emblem=>card(emblem.label,emblem.recorded?formatStatNumber(emblem.earned):'–',emblem.recorded?emblem.recorded+' recorded · avg '+average(emblem.average):'No emblem grades recorded'));
   const performance=matchPerformanceGroups(scoped,role,'perk'),characters=matchPerformanceGroups(scoped,role,'character');
   const perkCards=sortPerformanceGroups(performance.entries,sort).map(entry=>`<div class="performance-card">${icon(entry.name)}<h3>${escStat(entry.name)}</h3><div class="performance-metrics"><span>Pick rate<b>${formatStatPercent(entry.pickRate)}</b></span><span>${rateLabel}<b>${formatStatPercent(entry.rate)}</b></span></div><small>${entry.matches} ${entry.matches===1?'match':'matches'}</small></div>`).join('');
   const characterRows=sortPerformanceGroups(characters.entries,sort).map(entry=>`<tr><th scope="row">${escStat(entry.name)}</th><td>${entry.matches}</td><td>${entry.wins}</td><td>${entry.losses}</td><td>${entry.draws}</td><td>${formatStatPercent(entry.pickRate)}</td><td>${formatStatPercent(entry.rate)}</td></tr>`).join('');
-  return `<section class="card" aria-labelledby="stats-totals-title"><h2 id="stats-totals-title">Total ${roleLabel.toLowerCase()} stats</h2><div class="stats">${cards.join('')}${emblemCards.join('')}</div><p class="sub">${summary.withStats} of ${count(summary.matches,roleLabel.toLowerCase()+' match',roleLabel.toLowerCase()+' matches')} ${summary.matches===1?'includes':'include'} performance statistics. Totals and averages use recorded values only; escape and win rates include every match in the period.</p></section>
+  return `<section class="card" aria-labelledby="stats-totals-title"><h2 id="stats-totals-title">Total ${roleLabel.toLowerCase()} stats</h2><div class="stats">${cards.join('')}</div><p class="sub">${rateLabel} includes every match in the period. Optional ${optionalLabel} statistics are summarized in Advanced match analysis on the Match tracker.</p></section>
   <section class="card" aria-labelledby="stats-perks-title"><h2 id="stats-perks-title">${roleLabel} perks</h2>${perkCards?`<div class="performance-grid">${perkCards}</div>`:'<p class="sub">No perks recorded in this period. Add perks when logging a match to build pick-rate and rate cards.</p>'}<p class="sub">Pick rate uses ${performance.base} ${performance.base===1?'match':'matches'} with a recorded loadout. ${rateLabel} uses only matches where the perk was recorded. Small samples are not proof that a perk changes outcomes.</p></section>
   <section class="card" aria-labelledby="stats-characters-title"><h2 id="stats-characters-title">Characters</h2>${characterRows?`<div class="tablewrap"><table aria-labelledby="stats-characters-title"><thead><tr><th scope="col">Character</th><th scope="col">Played</th><th scope="col">Wins</th><th scope="col">Losses</th><th scope="col">Draws</th><th scope="col">Play rate</th><th scope="col">${rateLabel}</th></tr></thead><tbody>${characterRows}</tbody></table></div>`:'<p class="sub">No character history in this period.</p>'}<p class="sub">Play rate uses all ${roleLabel.toLowerCase()} matches in the period. Win, loss and draw totals follow the match tracker conventions.</p></section>`;
 }
@@ -212,7 +225,8 @@ function advancedMatchMetricsHTML(records){
   const roleRows=['S','K'].map(role=>{const s=summarizeMatches(records.filter(m=>m.role===role));return `<tr><td>${RN[role]}</td><td>${s.total}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.draws}</td><td>${s.surrenders}</td></tr>`});
   const charRows=[...grouped.values()].sort((a,b)=>b.records.length-a.records.length).map(g=>{const s=summarizeMatches(g.records);return `<tr><td>${esc(g.character)}</td><td>${RN[g.role]}</td><td>${s.total}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.draws}</td></tr>`});
   const perkRows=[...perkUse].sort((a,b)=>b[1].length-a[1].length).map(([name,list])=>{const s=summarizeMatches(list);return `<tr><td>${esc(name)}</td><td>${list.length}</td><td>${Math.round(s.winRate*100)}%</td></tr>`});
-  return `<details class="card"><summary>Advanced match analysis</summary><h3>Results by role</h3>${table(['Role','Played','Won','Lost','Draw','Surrender'],roleRows)}<h3>Killer kill distribution</h3><div class="stats">${distribution.map((n,k)=>`<div class="stat"><span>${k} kills</span><b>${n}</b></div>`).join('')}</div><p class="sub">Explicit draws and surrenders have no kill count and are excluded from kill averages and this distribution.</p><h3>Characters</h3>${charRows.length?table(['Character','Role','Played','Won','Lost','Draw'],charRows):'<p>No character history yet.</p>'}<h3>Perk usage</h3>${perkRows.length?table(['Perk','Matches recorded','Win rate'],perkRows):'<p>Select perks when logging a match to build this analysis.</p>'}<p class="sub">Perk results include only matches where those perks were recorded. Sample sizes matter; this is your history, not evidence that a perk causes wins. Observed builds are excluded from all metrics.</p></details>`;
+  const optionalStats=optionalMatchStatisticsHTML(records);
+  return `<details class="card"><summary>Advanced match analysis</summary><h3>Results by role</h3>${table(['Role','Played','Won','Lost','Draw','Surrender'],roleRows)}<h3>Killer kill distribution</h3><div class="stats">${distribution.map((n,k)=>`<div class="stat"><span>${k} kills</span><b>${n}</b></div>`).join('')}</div><p class="sub">Explicit draws and surrenders have no kill count and are excluded from kill averages and this distribution.</p><h3>Optional match statistics</h3>${optionalStats}<h3>Characters</h3>${charRows.length?table(['Character','Role','Played','Won','Lost','Draw'],charRows):'<p>No character history yet.</p>'}<h3>Perk usage</h3>${perkRows.length?table(['Perk','Matches recorded','Win rate'],perkRows):'<p>Select perks when logging a match to build this analysis.</p>'}<p class="sub">Perk results include only matches where those perks were recorded. Sample sizes matter; this is your history, not evidence that a perk causes wins. Observed builds are excluded from all metrics.</p></details>`;
 }
 let pendingMatchImport=null;
 function previewMatchImport(parsed){
